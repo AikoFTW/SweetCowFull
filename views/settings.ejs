@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+      
+      <div class="brand" style="display: flex; align-items: center;">
+        <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+        </button>
+        <img src="/images/icons/logo.png" alt="Sweet Cow Logo">
+        <h1>Sweet Cow</h1>
+      </div>
+      <ul class="nav">
+        <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
+        <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
+        <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+      </ul>
+      <footer><span class="tag"><span class="dot"></span> Online</span></footer>
+    </nav>
+
+    <main class="content" style="padding: 20px;">
+      <h2 style="margin-bottom: 20px;">Settings</h2>
+      <section class="card" style="max-width: 800px; margin: 0 auto;">
+        <h3 style="margin-bottom: 20px;">Important Dates Configuration</h3>
+        <form action="/settings" method="POST" style="display: flex; flex-direction: column; gap: 30px;">
+          <fieldset style="border: none;">
+            <legend style="font-weight: bold; margin-bottom: 10px;">General Settings</legend>
+            <div class="field">
+              <label for="dryOffAfterSuccessfulInsemDays">Dry-Off After Successful Insemination (Days)</label>
+              <input type="number" id="dryOffAfterSuccessfulInsemDays" name="dryOffAfterSuccessfulInsemDays" value="<%= settings.dryOffAfterSuccessfulInsemDays %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="changeFeedAfterSuccessfulInsemDays">Change Feed After Successful Insemination (Days)</label>
+              <input type="number" id="changeFeedAfterSuccessfulInsemDays" name="changeFeedAfterSuccessfulInsemDays" value="<%= settings.changeFeedAfterSuccessfulInsemDays %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="gestationDays">Gestation Period (Days)</label>
+              <input type="number" id="gestationDays" name="gestationDays" value="<%= settings.gestationDays %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="postpartumInseminationStartDays">Postpartum Insemination Start (Days After Actual Birth)</label>
+              <input type="number" id="postpartumInseminationStartDays" name="postpartumInseminationStartDays" value="<%= (settings.postpartumInseminationStartDays || 60) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="inseminationIntervalMonths">Insemination Interval (Months, Retry Window)</label>
+              <input type="number" id="inseminationIntervalMonths" name="inseminationIntervalMonths" value="<%= (settings.inseminationIntervalMonths || 3) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+          </fieldset>
+
+          <fieldset style="border: none;">
+            <legend style="font-weight: bold; margin-bottom: 10px;">Alerts</legend>
+            <div class="field">
+              <label for="calvingAlertBeforeDays">Calving Alert Before (Days)</label>
+              <input type="number" id="calvingAlertBeforeDays" name="calvingAlertBeforeDays" value="10" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="dryOffAlertBeforeDays">Dry-Off Alert Before (Days)</label>
+              <input type="number" id="dryOffAlertBeforeDays" name="dryOffAlertBeforeDays" value="1" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="changeFeedAlertBeforeDays">Change Feed Alert Before (Days)</label>
+              <input type="number" id="changeFeedAlertBeforeDays" name="changeFeedAlertBeforeDays" value="1" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+          </fieldset>
+
+          <fieldset style="border: none;">
+            <legend style="font-weight: bold; margin-bottom: 10px;">Calf Management</legend>
+            <div class="field">
+              <label for="femaleWeaningMonths">Female Weaning Age (Months)</label>
+              <input type="number" id="femaleWeaningMonths" name="femaleWeaningMonths" value="<%= (settings.femaleWeaningMonths || 14) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="maleWeaningMonths">Male Weaning Age (Months)</label>
+              <input type="number" id="maleWeaningMonths" name="maleWeaningMonths" value="<%= (settings.maleWeaningMonths || 8) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="maleSellAgeMonths">Male Calf/Bull Sell Age (Months)</label>
+              <input type="number" id="maleSellAgeMonths" name="maleSellAgeMonths" value="<%= (settings.maleSellAgeMonths || settings.maleSellMonths || settings.bullSellAgeMonths || 16) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+          </fieldset>
+          <button type="submit" id="save-settings" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer;">Save Settings</button>
+        </form>
+
+        <div id="confirmation" style="display: none; margin-top: 20px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background-color: #f8f9fa;">
+          <h4>Settings Updated</h4>
+          <ul id="changed-settings" style="list-style: none; padding: 0;">
+            <!-- Changes will be dynamically added here -->
+          </ul>
+          <button onclick="document.getElementById('confirmation').style.display = 'none';" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">Confirm</button>
+        </div>
+
+        <div id="popup" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000;">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; width: 400px;">
+            <h4 id="popup-title">Confirm Changes</h4>
+            <ul id="popup-changed-settings" style="list-style: none; padding: 0; margin-bottom: 20px;">
+              <!-- Changes will be dynamically added here -->
+            </ul>
+            <div id="popup-buttons" style="display: flex; justify-content: space-between;">
+              <button id="confirm-button" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer;">Confirm</button>
+              <button id="decline-button" style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer;">Decline</button>
+            </div>
+            <button id="okay-button" style="display: none; margin-top: 20px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">Okay</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // Expose settings (with fallbacks) for other pages via localStorage so cattle-registry can read them
+      try {
+        const exposedSettings = JSON.parse(`<%- JSON.stringify({
+          gestationDays: settings.gestationDays,
+          dryOffAfterSuccessfulInsemDays: settings.dryOffAfterSuccessfulInsemDays,
+          changeFeedAfterSuccessfulInsemDays: settings.changeFeedAfterSuccessfulInsemDays,
+          postpartumInseminationStartDays: (settings.postpartumInseminationStartDays || 60),
+          inseminationIntervalMonths: (settings.inseminationIntervalMonths || 3),
+          bullSellAgeMonths: (settings.bullSellAgeMonths || 24)
+        }) %>`);
+        // Dynamic alert lead times read from form inputs (not persisted yet server-side)
+        exposedSettings.calvingAlertBeforeDays = parseInt(document.getElementById('calvingAlertBeforeDays').value || '10',10);
+        exposedSettings.dryOffAlertBeforeDays = parseInt(document.getElementById('dryOffAlertBeforeDays').value || '1',10);
+        exposedSettings.changeFeedAlertBeforeDays = parseInt(document.getElementById('changeFeedAlertBeforeDays').value || '1',10);
+        localStorage.setItem('sweetcow_settings', JSON.stringify(exposedSettings));
+      } catch(e) { console.warn('Could not persist settings locally', e); }
+
+      const sidebar = document.getElementById('sidebar');
+      const hamburger = document.querySelector('.hamburger');
+      const closeSidebar = document.querySelectorAll('.close-sidebar');
+
+      hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+
+      closeSidebar.forEach(button => {
+        button.addEventListener('click', () => {
+          sidebar.classList.remove('open');
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+          sidebar.classList.remove('open');
+        }
+      });
+
+      const form = document.querySelector('form');
+      const confirmation = document.getElementById('confirmation');
+      const changedSettings = document.getElementById('changed-settings');
+      const popup = document.getElementById('popup');
+      const popupTitle = document.getElementById('popup-title');
+      const popupChangedSettings = document.getElementById('popup-changed-settings');
+      const popupButtons = document.getElementById('popup-buttons');
+      const confirmButton = document.getElementById('confirm-button');
+      const declineButton = document.getElementById('decline-button');
+      const okayButton = document.getElementById('okay-button');
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(form);
+        const changes = [];
+
+        formData.forEach((value, key) => {
+          const input = document.getElementById(key);
+          if (input && input.defaultValue !== value) {
+            changes.push(`${input.previousElementSibling.textContent}: ${input.defaultValue} → ${value}`);
+          }
+        });
+
+        if (changes.length === 0) {
+          popupTitle.textContent = 'No Changes';
+          popupChangedSettings.innerHTML = '<li>Nothing to save.</li>';
+          popupButtons.style.display = 'none';
+          okayButton.style.display = 'block';
+        } else {
+          popupTitle.textContent = 'Confirm Changes';
+          popupChangedSettings.innerHTML = changes.map(change => `<li>${change}</li>`).join('');
+          popupButtons.style.display = 'flex';
+          okayButton.style.display = 'none';
+        }
+
+        popup.style.display = 'block';
+      });
+
+      confirmButton.addEventListener('click', () => {
+        popup.style.display = 'none';
+        form.submit();
+      });
+
+      declineButton.addEventListener('click', () => {
+        popup.style.display = 'none';
+      });
+
+      okayButton.addEventListener('click', () => {
+        popup.style.display = 'none';
+      });
+    </script>
+
+    <%- include('partials/footer') %>
+</body>
+</html>

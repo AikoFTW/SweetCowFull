@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cattle Management</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+      
+      <div class="brand" style="display: flex; align-items: center;">
+        <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+        </button>
+        <img src="/images/icons/logo.png" alt="Sweet Cow Logo">
+        <h1>Sweet Cow</h1>
+      </div>
+      <ul class="nav">
+        <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
+        <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
+        <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+      </ul>
+      <footer><span class="tag"><span class="dot"></span> Online</span></footer>
+    </nav>
+
+    <main class="content" style="padding: 20px;">
+      <h2 style="margin-bottom: 20px;">Cattle Management</h2>
+      <section style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="border: 1px solid #ccc; padding: 20px; border-radius: 8px;">
+          <h3>Cattle Viewer</h3>
+          <p>View and edit all cattle profiles sorted by bulls, cows, and calves, including profile pictures if applicable.</p>
+          <a href="/cattle-viewer" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px;">Go to Cattle Viewer</a>
+        </div>
+        <div style="border: 1px solid #ccc; padding: 20px; border-radius: 8px;">
+          <h3>Cattle Registry Table View</h3>
+          <p>View and manage all cattle sorted by bulls, cows, and calves. You can sort, edit, add, delete, set as sold, and more.</p>
+          <a href="/cattle-registry" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px;">Go to Cattle Registry</a>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const sidebar = document.getElementById('sidebar');
+      const hamburger = document.querySelector('.hamburger');
+      const closeSidebar = document.querySelectorAll('.close-sidebar');
+
+      hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+
+      closeSidebar.forEach(button => {
+        button.addEventListener('click', () => {
+          sidebar.classList.remove('open');
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+          sidebar.classList.remove('open');
+        }
+      });
+    </script>
+
+    <%- include('partials/footer') %>
+</body>
+</html>
