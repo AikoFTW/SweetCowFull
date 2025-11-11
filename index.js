@@ -1,13 +1,14 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
+require('dotenv').config()
 // Insemination model not used in current registry view
 
 const app = express();
 const PORT = 3000;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/sweetcow', {
+mongoose.connect(`${process.env.MONGOURI}/sweetcow`, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
@@ -218,38 +219,9 @@ app.post('/add-cattle', async (req, res) => {
             return res.status(400).json({ error: 'Cattle type is required' });
         }
 
-        // Helpers for cross-collection uniqueness
-        const escapeRegExp = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const nameTaken = async (name) => {
-            if (!name) return false;
-            const rx = new RegExp('^' + escapeRegExp(name) + '$', 'i');
-            const [c1, c2, c3] = await Promise.all([
-                Cow.findOne({ cowName: rx }).lean(),
-                Calf.findOne({ calfName: rx }).lean(),
-                Bull.findOne({ bullName: rx }).lean(),
-            ]);
-            return !!(c1 || c2 || c3);
-        };
-        const numberTaken = async (num) => {
-            if (!num) return false;
-            const rx = new RegExp('^' + escapeRegExp(num) + '$', 'i');
-            const [c, b] = await Promise.all([
-                Cow.findOne({ cowNumber: rx }).lean(),
-                Bull.findOne({ bullNumber: rx }).lean(),
-            ]);
-            return !!(c || b);
-        };
-
         let newEntry;
 
         if (type === 'cow') {
-            // Cross-collection uniqueness checks
-            if (await numberTaken(req.body.registeringNumber)) {
-                return res.status(409).json({ error: 'Number already in use by another animal' });
-            }
-            if (await nameTaken(req.body.registeringName)) {
-                return res.status(409).json({ error: 'Name already in use by another animal' });
-            }
             newEntry = new Cow({
                 cowNumber: req.body.registeringNumber,
                 cowName: req.body.registeringName,
@@ -270,9 +242,6 @@ app.post('/add-cattle', async (req, res) => {
             if (!['male','female'].includes(gender)) {
                 return res.status(400).json({ error: 'Calf gender must be male or female' });
             }
-            if (await nameTaken(req.body.calfName)) {
-                return res.status(409).json({ error: 'Name already in use by another animal' });
-            }
             newEntry = new Calf({
                 calfName: req.body.calfName,
                 calfBreed: req.body.calfBreed,
@@ -287,12 +256,6 @@ app.post('/add-cattle', async (req, res) => {
                 sireBullBreed: req.body.sireBullBreed,
             });
         } else if (type === 'bull') {
-            if (await numberTaken(req.body.registeringNumber)) {
-                return res.status(409).json({ error: 'Number already in use by another animal' });
-            }
-            if (await nameTaken(req.body.registeringName)) {
-                return res.status(409).json({ error: 'Name already in use by another animal' });
-            }
             newEntry = new Bull({
                 bullNumber: req.body.registeringNumber,
                 bullName: req.body.registeringName,
@@ -327,82 +290,13 @@ app.post('/edit-cattle', async (req, res) => {
             return res.status(400).send('Invalid request');
         }
 
-        // Helpers
-        const escapeRegExp = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const nameTakenExcept = async (name, excludeId) => {
-            if (!name) return false;
-            const rx = new RegExp('^' + escapeRegExp(name) + '$', 'i');
-            const [c1, c2, c3] = await Promise.all([
-                Cow.findOne({ cowName: rx }).lean(),
-                Calf.findOne({ calfName: rx }).lean(),
-                Bull.findOne({ bullName: rx }).lean(),
-            ]);
-            const found = c1 || c2 || c3;
-            return found && String(found._id) !== String(excludeId);
-        };
-        const numberTakenExcept = async (num, excludeId) => {
-            if (!num) return false;
-            const rx = new RegExp('^' + escapeRegExp(num) + '$', 'i');
-            const [c, b] = await Promise.all([
-                Cow.findOne({ cowNumber: rx }).lean(),
-                Bull.findOne({ bullNumber: rx }).lean(),
-            ]);
-            const found = c || b;
-            return found && String(found._id) !== String(excludeId);
-        };
-
         let model;
-        let mapped = {};
-        if (type === 'cow') {
-            model = Cow;
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringNumber')) {
-                if (await numberTakenExcept(updates.registeringNumber, id)) {
-                    return res.status(409).send('Number already in use by another animal');
-                }
-                mapped.cowNumber = updates.registeringNumber;
-            }
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringName')) {
-                if (await nameTakenExcept(updates.registeringName, id)) {
-                    return res.status(409).send('Name already in use by another animal');
-                }
-                mapped.cowName = updates.registeringName;
-            }
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringRace')) mapped.race = updates.registeringRace;
-            ['dob','lastCalving','notes','motherCowNumber','motherCowName','motherCowBreed','sireBullNumber','sireBullName','sireBullBreed'].forEach(k=>{
-                if (Object.prototype.hasOwnProperty.call(updates, k)) mapped[k] = updates[k];
-            });
-        } else if (type === 'calf') {
-            model = Calf;
-            if (Object.prototype.hasOwnProperty.call(updates, 'calfName')) {
-                if (await nameTakenExcept(updates.calfName, id)) {
-                    return res.status(409).send('Name already in use by another animal');
-                }
-            }
-            // pass through for calves (field names already match)
-            mapped = { ...updates };
-        } else if (type === 'bull') {
-            model = Bull;
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringNumber')) {
-                if (await numberTakenExcept(updates.registeringNumber, id)) {
-                    return res.status(409).send('Number already in use by another animal');
-                }
-                mapped.bullNumber = updates.registeringNumber;
-            }
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringName')) {
-                if (await nameTakenExcept(updates.registeringName, id)) {
-                    return res.status(409).send('Name already in use by another animal');
-                }
-                mapped.bullName = updates.registeringName;
-            }
-            if (Object.prototype.hasOwnProperty.call(updates, 'registeringRace')) mapped.race = updates.registeringRace;
-            ['dob','notes','motherCowNumber','motherCowName','motherCowBreed','sireBullNumber','sireBullName','sireBullBreed'].forEach(k=>{
-                if (Object.prototype.hasOwnProperty.call(updates, k)) mapped[k] = updates[k];
-            });
-        } else {
-            return res.status(400).send('Invalid cattle type');
-        }
+        if (type === 'cow') model = Cow;
+        else if (type === 'calf') model = Calf;
+        else if (type === 'bull') model = Bull;
+        else return res.status(400).send('Invalid cattle type');
 
-        const updatedEntry = await model.findByIdAndUpdate(id, mapped, { new: true });
+        const updatedEntry = await model.findByIdAndUpdate(id, updates, { new: true });
         res.status(200).json(updatedEntry);
     } catch (err) {
         res.status(500).send(err.message);
