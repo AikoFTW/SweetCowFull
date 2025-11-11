@@ -1,13 +1,14 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
+require('dotenv').config()
 // Insemination model not used in current registry view
 
 const app = express();
 const PORT = 3000;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/sweetcow', {
+mongoose.connect(`${process.env.MONGOURI}/sweetcow`, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
