@@ -47,6 +47,15 @@
       }
 
       .add-button:hover { background-color: #218838; }
+  /* Distinct button variants */
+  .btn-cows { background:#198754; }
+  .btn-cows:hover { background:#146c43; }
+  .btn-calves { background:#ff9800; }
+  .btn-calves:hover { background:#e68900; }
+  .btn-bulls { background:#6f42c1; }
+  .btn-bulls:hover { background:#59329c; }
+  .advanced-filter-btn { background:#0d6efd; }
+  .advanced-filter-btn:hover { background:#0b5ed7; }
 
       .modal {
         display: none;
@@ -109,6 +118,11 @@
       .advanced-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px 12px; margin-top:8px; }
       .advanced-grid label { font-size:0.85rem; color:#333; }
       .advanced-grid input, .advanced-grid select { width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
+
+      /* Inline validation styles */
+      .invalid { border-color: #dc3545 !important; background: #fff5f6; }
+      .error-text { color: #dc3545; font-size: 0.85rem; margin-top: 4px; display: block; }
+      .error-banner { background: #fde2e4; color: #842029; border: 1px solid #f5c2c7; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -139,7 +153,14 @@
         <h1>Cattle Registry</h1>
         <a href="/cattle-management" class="back-button" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">Back to Cattle Management</a>
 
-        <section>
+        <!-- Quick type navigation -->
+        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
+          <button type="button" class="add-button btn-cows" onclick="scrollToSection('cows-section')">Cows</button>
+          <button type="button" class="add-button btn-calves" onclick="scrollToSection('calves-section')">Calves</button>
+          <button type="button" class="add-button btn-bulls" onclick="scrollToSection('bulls-section')">Bulls</button>
+        </div>
+
+  <section id="cows-section">
       <h2>Cows <button class="add-button" onclick="openModal('cow')">Add Cow</button></h2>
             <div class="table-container">
         <table class="cow-table">
@@ -210,7 +231,7 @@
             </div>
         </section>
 
-        <section>
+  <section id="calves-section">
       <h2>Calves <button class="add-button" onclick="openModal('calf')">Add Calf</button></h2>
             <div class="table-container">
                 <table class="calf-table">
@@ -280,7 +301,7 @@
             </div>
         </section>
 
-        <section>
+  <section id="bulls-section">
       <h2>Bulls <button class="add-button" onclick="openModal('bull')">Add Bull</button></h2>
             <div class="table-container">
                 <table class="bull-table">
@@ -389,6 +410,11 @@
     </main>
 
     <script>
+      // Smooth scroll to a section by id
+      function scrollToSection(id){
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       // Sidebar toggle (match behavior from other pages)
       const sidebar = document.getElementById('sidebar');
       const hamburger = document.querySelector('.hamburger');
@@ -517,6 +543,8 @@
         }
 
         modalForm.innerHTML = formFields;
+        clearFieldErrors();
+        addRealtimeValidationHandlers();
       }
 
       // Separate helper for closing temporary popup modals to avoid
@@ -598,10 +626,10 @@
             columnSelector.appendChild(option);
           }
         });
-        const advBtn = document.createElement('button');
-        advBtn.type = 'button';
-        advBtn.textContent = 'Advanced Filters';
-        advBtn.className = 'add-button';
+  const advBtn = document.createElement('button');
+  advBtn.type = 'button';
+  advBtn.textContent = 'Advanced Filters';
+  advBtn.className = 'add-button advanced-filter-btn';
 
         actions.appendChild(searchInput);
         actions.appendChild(columnSelector);
@@ -903,6 +931,8 @@
                 <button type="submit" class="add-button" style="background:#198754;">Save</button>
                 <button type="button" class="add-button" style="background:#6c757d;" onclick="closeModal()">Cancel</button>
               </div>`;
+            clearFieldErrors();
+            addRealtimeValidationHandlers();
             // Keep original for diffing using exact form field names per type
             if (type === 'cow') {
               window._currentEditOriginal = {
@@ -1005,12 +1035,22 @@
         const mode = modalForm.dataset.mode || 'add';
         const type = data.type;
         try {
+          clearFormError();
+          clearFieldErrors();
           if (mode === 'add') {
             const resp = await fetch('/add-cattle', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data)
             });
-            if (!resp.ok) throw new Error(await resp.text());
+            if (!resp.ok) {
+              const txt = await resp.text();
+              // Try to parse JSON error shape
+              let msg = txt;
+              try { const j = JSON.parse(txt); msg = j.error || txt; } catch {}
+              // Field-level mapping for conflicts
+              handleFieldConflicts(type, msg);
+              throw new Error(msg || 'Add failed');
+            }
           } else {
             const id = data.id;
             delete data.id; // leave type
@@ -1018,15 +1058,95 @@
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, type, updates: data })
             });
-            if (!resp.ok) throw new Error(await resp.text());
+            if (!resp.ok) {
+              const txt = await resp.text();
+              handleFieldConflicts(type, txt);
+              throw new Error(txt || 'Update failed');
+            }
           }
+          showCustomPopup('Saved successfully.', 'success');
           closeModal();
-          location.reload();
+          setTimeout(() => location.reload(), 1200);
         } catch (err) {
           console.error(err);
-          showCustomPopup('Save failed: ' + err.message, 'error');
+          // Also surface near the form fields
+          setFormError(String(err.message || err));
+          showCustomPopup(String(err.message || err), 'error');
         }
       });
+
+      function setFormError(message) {
+        if (!modalForm) return;
+        let banner = modalForm.querySelector('.error-banner');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.className = 'error-banner';
+          modalForm.insertBefore(banner, modalForm.firstChild);
+        }
+        banner.textContent = message;
+      }
+
+      function clearFormError() {
+        if (!modalForm) return;
+        const banner = modalForm.querySelector('.error-banner');
+        if (banner) banner.remove();
+      }
+
+      function markInvalid(inputEl, message) {
+        if (!inputEl) return;
+        inputEl.classList.add('invalid');
+        // Avoid duplicate helper
+        let helper = inputEl.parentElement && inputEl.parentElement.querySelector('.error-text');
+        if (!helper) {
+          helper = document.createElement('span');
+          helper.className = 'error-text';
+          // Insert after the input element
+          if (inputEl.nextSibling) inputEl.parentElement.insertBefore(helper, inputEl.nextSibling.nextSibling || inputEl.nextSibling);
+          else inputEl.parentElement.appendChild(helper);
+        }
+        helper.textContent = message || 'Invalid value';
+      }
+
+      function clearFieldErrors() {
+        if (!modalForm) return;
+        modalForm.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+        modalForm.querySelectorAll('.error-text').forEach(el => el.remove());
+      }
+
+      function addRealtimeValidationHandlers() {
+        if (!modalForm) return;
+        modalForm.querySelectorAll('input,select,textarea').forEach(el => {
+          el.addEventListener('input', () => {
+            if (el.classList.contains('invalid')) {
+              el.classList.remove('invalid');
+              const helper = el.parentElement && el.parentElement.querySelector('.error-text');
+              if (helper) helper.remove();
+            }
+            clearFormError();
+          });
+        });
+      }
+
+      function handleFieldConflicts(type, message) {
+        const msg = String(message || '').toLowerCase();
+        const isName = msg.includes('name already in use') || msg.includes('name already taken');
+        const isNumber = msg.includes('number already in use') || msg.includes('number already taken');
+        let targetNames = [];
+        if (type === 'cow' || type === 'bull') {
+          if (isName) targetNames.push('registeringName');
+          if (isNumber) targetNames.push('registeringNumber');
+        } else if (type === 'calf') {
+          if (isName) targetNames.push('calfName');
+        }
+        if (targetNames.length) {
+          targetNames.forEach(n => markInvalid(modalForm.querySelector(`[name="${n}"]`), 'Already in use'));
+          if (targetNames[0]) {
+            const first = modalForm.querySelector(`[name="${targetNames[0]}"]`);
+            if (first) first.focus();
+          }
+          setFormError(message);
+        }
+      }
 
       // Confirm Modal helpers
       let _confirmCb = null;
