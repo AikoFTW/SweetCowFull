@@ -1,415 +1,323 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cattle Registry</title>
-    <link rel="stylesheet" href="/css/styles.css">
-    <style>
-      table {
-        font-size: 0.9rem;
-        width: 100%;
-        border-collapse: collapse;
-        text-align: left;
-        margin-bottom: 20px;
-      }
-
-      th, td {
-        padding: 10px;
-        border: 1px solid #ddd;
-      }
-
-  th { background-color: #f8f9fa; font-weight: 600; }
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Cattle Registry</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+      table { font-size: 0.9rem; width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; }
+      th, td { padding: 10px; border: 1px solid #ddd; }
+      th { background-color: #f8f9fa; font-weight: 600; }
       tbody tr.data-row:hover { background: #f9fcff; }
       tbody tr.more-info-row { background: #fafafa; }
-    /* Zebra striping for data rows while ignoring hidden detail rows.
-      Pattern: data-row (odd index), more-info-row (even index), repeat.
-      So alternate using 4n+1 and 4n+3 to stripe only the visible data rows. */
-    tbody tr.data-row:nth-child(4n+1) { background: #ffffff; }
-    tbody tr.data-row:nth-child(4n+3) { background: #f5f9ff; }
-
+      tbody tr.data-row:nth-child(4n+1) { background: #ffffff; }
+      tbody tr.data-row:nth-child(4n+3) { background: #f5f9ff; }
       .table-container { overflow-x: auto; margin-bottom: 20px; }
-
       h2 { margin-top: 20px; }
-
-      .back-button { margin-bottom: 20px; }
-
-      .add-button {
-        padding: 5px 10px;
-        background-color: #28a745;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        font-size: 0.9rem;
-        margin-left: 10px;
-        cursor: pointer;
-      }
-
+      .add-button { padding: 5px 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-size: 0.9rem; margin-left: 10px; cursor: pointer; border:none; }
       .add-button:hover { background-color: #218838; }
-  /* Distinct button variants */
-  .btn-cows { background:#198754; }
-  .btn-cows:hover { background:#146c43; }
-  .btn-calves { background:#ff9800; }
-  .btn-calves:hover { background:#e68900; }
-  .btn-bulls { background:#6f42c1; }
-  .btn-bulls:hover { background:#59329c; }
-  .advanced-filter-btn { background:#0d6efd; }
-  .advanced-filter-btn:hover { background:#0b5ed7; }
-
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0; top: 0;
-        width: 100%; height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-      }
-
-      .modal-content {
-        background-color: #fefefe;
-        margin: 15% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-        max-width: 500px;
-        border-radius: 8px;
-      }
-
-      .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-      .close:hover, .close:focus { color: black; text-decoration: none; }
-
-      .notification {
-        display: none; position: fixed; bottom: 20px; right: 20px;
-        background-color: #28a745; color: white; padding: 10px 20px; border-radius: 8px;
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.15); z-index: 1000; font-weight:600;
-      }
-      .notification.error { background-color: #dc3545; }
-      .notification.info { background-color: #0d6efd; }
-
-      /* Toast container */
-  .toast { position: fixed; bottom: 20px; left: 16px; z-index: 1001; display:none; pointer-events: none; }
-  .toast .toast-item { background:#111; color:#fff; padding:12px 16px; border-radius:10px; margin-top:10px; box-shadow:0 10px 24px rgba(0,0,0,.2); min-width: 240px; pointer-events: auto; }
-      .toast .success { background: #198754; }
-      .toast .error { background: #dc3545; }
-      .toast .info { background: #0d6efd; }
-
-      .search-container {
-        position: sticky; top: 64px; background-color: white; z-index: 10;
-        padding: 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      }
-
-      details summary { cursor: pointer; color: #007bff; outline: none; }
-      .notes-content { white-space: pre-wrap; margin-top: 8px; padding: 8px; background: #f9f9f9; border: 1px solid #eee; border-radius: 4px; }
-
-      .form-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 8px 16px; align-items: center; }
-      .form-grid label { font-weight: 600; }
-      .form-grid input, .form-grid select, .form-grid textarea { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
-      .actions-inline button { margin-right: 6px; }
-
-      .detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-      .detail-grid label { display:block; font-weight:600; color:#333; }
-      .detail-grid span { display:block; color:#555; }
-
-      .search-actions { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+      .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.5); }
+      .modal-content { background-color: #fefefe; margin: 6% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; position: relative; }
+      .close { color: #aaa; position:absolute; top:8px; right:12px; font-size: 28px; font-weight: bold; cursor: pointer; }
+      .close:hover { color: black; }
+      .toast { position: fixed; bottom: 20px; left: 16px; z-index: 1001; display:none; pointer-events: none; }
+      .toast .toast-item { background:#111; color:#fff; padding:12px 16px; border-radius:10px; margin-top:10px; box-shadow:0 10px 24px rgba(0,0,0,.2); min-width:240px; pointer-events:auto; font-size:.8rem; }
+      .toast .success { background:#198754; } .toast .error { background:#dc3545; } .toast .info { background:#0d6efd; }
+      .search-container { position: sticky; top: 64px; background-color: white; z-index: 10; padding: 10px; display:flex; flex-direction:column; gap:10px; align-items:flex-start; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+      .search-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
       .advanced-panel { display:none; padding:10px; border:1px solid #eee; border-radius:6px; background:#fbfbfb; width:100%; }
       .advanced-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px 12px; margin-top:8px; }
-      .advanced-grid label { font-size:0.85rem; color:#333; }
-      .advanced-grid input, .advanced-grid select { width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
-
-      /* Inline validation styles */
-      .invalid { border-color: #dc3545 !important; background: #fff5f6; }
-      .error-text { color: #dc3545; font-size: 0.85rem; margin-top: 4px; display: block; }
-      .error-banner { background: #fde2e4; color: #842029; border: 1px solid #f5c2c7; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; font-weight: 600; }
-    </style>
+      .advanced-grid label { font-size:0.75rem; color:#333; display:flex; flex-direction:column; gap:4px; }
+      .advanced-grid input, .advanced-grid select { width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.75rem; }
+      .form-grid { display:grid; grid-template-columns: 1fr 2fr; gap:8px 16px; align-items:center; }
+      .form-grid label { font-weight:600; }
+      .form-grid input, .form-grid select, .form-grid textarea { width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.85rem; }
+      .detail-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+      .detail-grid label { display:block; font-weight:600; color:#333; }
+      .detail-grid span { display:block; color:#555; }
+      .error-banner { background:#fde2e4; color:#842029; border:1px solid #f5c2c7; padding:8px 10px; border-radius:6px; margin-bottom:10px; font-weight:600; }
+      .invalid { border-color:#dc3545 !important; background:#fff5f6; }
+      .error-text { color:#dc3545; font-size:0.75rem; margin-top:4px; display:block; }
+      .notes-content { white-space:pre-wrap; margin-top:6px; padding:8px; background:#f9f9f9; border:1px solid #eee; border-radius:4px; font-size:0.75rem; }
+      .parent-meta { font-size:0.65rem; color:#555; margin:4px 0 8px; }
+  </style>
 </head>
 <body>
-    <%- include('partials/header') %>
+  <%- include('partials/header') %>
+  <main class="content" style="padding:20px;">
+  <h1 style="margin-top:0;">Cattle Registry</h1>
+  <a href="/cattle-management" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px; display:inline-block;">Back to Cattle Management</a>
 
-    <nav class="sidebar" id="sidebar">
-      <div class="brand" style="display: flex; align-items: center;">
-        <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
-          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
-          <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
-        </button>
-        <img src="/images/icons/logo.png" alt="Sweet Cow Logo">
-        <h1>Sweet Cow</h1>
-      </div>
-      <ul class="nav">
-        <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
-        <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
-        <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
-      </ul>
-      <footer>
-        <span class="tag" style="font-size: 1rem; padding: 10px 14px;">
-          <span class="dot" style="width: 12px; height: 12px;"></span> Online
-        </span>
-      </footer>
-    </nav>
+  <section style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="btn btn-cows" style="padding:6px 10px;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('cows-section')">Cows</button>
+    <button class="btn btn-bulls" style="padding:6px 10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('bulls-section')">Bulls</button>
+    <button class="btn btn-calves" style="padding:6px 10px;background:#ff9800;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('calves-section')">Calves</button>
+  </section>
+  <!-- Sidebar navigation restored -->
+  <nav class="sidebar" id="sidebar">
+    <div class="brand" style="display:flex; align-items:center;">
+      <button class="close-sidebar" aria-label="Close navigation" style="background:transparent; border:none; cursor:pointer; margin-right:10px; position:relative;">
+        <span style="display:block; width:20px; height:2px; background:black; transform:rotate(45deg); position:absolute; top:50%; left:50%; transform-origin:center; margin:-1px 0 0 -10px;"></span>
+        <span style="display:block; width:20px; height:2px; background:black; transform:rotate(-45deg); position:absolute; top:50%; left:50%; transform-origin:center; margin:-1px 0 0 -10px;"></span>
+      </button>
+      <img src="/images/icons/logo.png" alt="Sweet Cow Logo" style="width:48px; height:48px; object-fit:contain; border-radius:8px; margin-right:8px;">
+      <h1 style="font-size:1.4rem; margin:0;">Sweet Cow</h1>
+    </div>
+    <ul class="nav" style="list-style:none; padding:0; margin:16px 0;">
+      <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
+      <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
+      <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+    </ul>
+    <footer style="margin-top:auto; padding:12px 0;">
+      <span class="tag" style="font-size:.85rem; padding:6px 10px; display:inline-flex; align-items:center; gap:6px; background:#f1f3f5; border-radius:20px;">
+        <span class="dot" style="width:10px; height:10px; background:#28a745; border-radius:50%; display:inline-block;"></span> Online
+      </span>
+    </footer>
+  </nav>
 
-    <main class="content">
-        <h1>Cattle Registry</h1>
-        <a href="/cattle-management" class="back-button" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">Back to Cattle Management</a>
-
-        <!-- Quick type navigation -->
-        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
-          <button type="button" class="add-button btn-cows" onclick="scrollToSection('cows-section')">Cows</button>
-          <button type="button" class="add-button btn-calves" onclick="scrollToSection('calves-section')">Calves</button>
-          <button type="button" class="add-button btn-bulls" onclick="scrollToSection('bulls-section')">Bulls</button>
-        </div>
-
+  <!-- Cows Section -->
   <section id="cows-section">
-      <h2>Cows <button class="add-button" onclick="openModal('cow')">Add Cow</button></h2>
-            <div class="table-container">
-        <table class="cow-table">
-                    <thead>
-                        <tr>
-              <th>Cow #</th>
-              <th>Name</th>
-              <th>Breed</th>
-              <th>DOB</th>
-              <th>Last Calving</th>
-                            <th>Notes</th>
-              <th>More Info</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            <% cows.forEach(cow => { %>
-              <tr class="data-row" data-number="<%= cow.cowNumber || '' %>" data-name="<%= cow.cowName || '' %>" data-breed="<%= cow.race || '' %>" data-dob="<%= cow.dob ? cow.dob.toISOString ? cow.dob.toISOString().slice(0,10) : new Date(cow.dob).toISOString().slice(0,10) : '' %>" data-last-calving="<%= cow.lastCalving ? cow.lastCalving.toISOString ? cow.lastCalving.toISOString().slice(0,10) : new Date(cow.lastCalving).toISOString().slice(0,10) : '' %>" data-notes="<%- (cow.notes || '').replace(/\"/g,'&quot;') %>" data-mother-number="<%= cow.motherCowNumber || '' %>"
-                data-mother-name="<%= cow.motherCowName || '' %>"
-                data-mother-breed="<%= cow.motherCowBreed || '' %>"
-                data-sire-number="<%= cow.sireBullNumber || '' %>"
-                data-sire-name="<%= cow.sireBullName || '' %>"
-                data-sire-breed="<%= cow.sireBullBreed || '' %>">
-                            <td><%= cow.cowNumber %></td>
-                            <td><%= cow.cowName %></td>
-                            <td><%= cow.race || 'N/A' %></td>
-                            <td><%= cow.dob ? cow.dob.toDateString() : 'N/A' %></td>
-                            <td><%= cow.lastCalving ? cow.lastCalving.toDateString() : 'N/A' %></td>
-                            <td>
-                              <% if (cow.notes && cow.notes.trim()) { %>
-                                <details>
-                                  <summary>Preview</summary>
-                                  <div class="notes-content"><%= cow.notes %></div>
-                                </details>
-                                <button type="button" class="add-button" style="margin-top:6px" data-type="cow" data-id="<%= cow._id %>" data-notes="<%- cow.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
-                              <% } else { %>
-                                N/A
-                              <% } %>
-                            </td>
-                            <td>
-                              <button type="button" class="add-button" onclick="toggleMoreInfo('cow','<%= cow._id %>')">More info</button>
-                            </td>
-                            <td class="actions-inline">
-                              <button onclick="openEditModal('cow', '<%= cow._id %>')">Edit</button>
-                              <details style="display:inline-block; margin-left:6px;">
-                                <summary style="cursor:pointer; color:#dc3545;">Danger Zone</summary>
-                                <div style="background:#fff3f3; border:1px solid #f5c2c7; padding:8px; border-radius:4px; margin-top:6px; min-width:160px;">
-                                  <button onclick="confirmDelete('cow', '<%= cow._id %>')" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:4px;width:100%;">Delete</button>
-                                </div>
-                              </details>
-                            </td>
-                          </tr>
-                          <tr id="cow-more-<%= cow._id %>" class="more-info-row" style="display:none;">
-                            <td colspan="7">
-                              <div class="detail-grid">
-                                <div><label>Mother #</label><span><%= cow.motherCowNumber || 'N/A' %></span></div>
-                                <div><label>Mother Name</label><span><%= cow.motherCowName || 'N/A' %></span></div>
-                                <div><label>Mother Breed</label><span><%= cow.motherCowBreed || 'N/A' %></span></div>
-                                <div><label>Sire #</label><span><%= cow.sireBullNumber || 'N/A' %></span></div>
-                                <div><label>Sire Name</label><span><%= cow.sireBullName || 'N/A' %></span></div>
-                                <div><label>Sire Breed</label><span><%= cow.sireBullBreed || 'N/A' %></span></div>
-                              </div>
-                            </td>
-                          </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+    <h2>Cows <button class="add-button" onclick="openAddModal('cow')">Add Cow</button></h2>
+    <div class="table-container">
+      <table class="cow-table">
+        <thead>
+          <tr>
+            <th>Cow #</th>
+            <th>Name</th>
+            <th>Breed</th>
+            <th>DOB</th>
+            <th>Notes</th>
+            <th>More Info</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% cows.forEach(cow => { %>
+            <tr id="cow-row-<%= cow._id %>" class="data-row" data-id="<%= cow._id %>" data-number="<%= cow.cowNumber || '' %>" data-name="<%= cow.cowName || '' %>" data-breed="<%= cow.race || '' %>" data-dob="<%= cow.dob ? (cow.dob.toISOString ? cow.dob.toISOString().slice(0,10) : new Date(cow.dob).toISOString().slice(0,10)) : '' %>" data-last-calving="<%= cow.lastCalving ? (cow.lastCalving.toISOString ? cow.lastCalving.toISOString().slice(0,10) : new Date(cow.lastCalving).toISOString().slice(0,10)) : '' %>" data-notes="<%- (cow.notes || '').replace(/"/g,'&quot;') %>" data-mother-number="<%= cow.motherCowNumber || '' %>" data-mother-name="<%= cow.motherCowName || '' %>" data-mother-breed="<%= cow.motherCowBreed || '' %>" data-sire-number="<%= cow.sireBullNumber || '' %>" data-sire-name="<%= cow.sireBullName || '' %>" data-sire-breed="<%= cow.sireBullBreed || '' %>">
+              <td><a href="/profile/cow/<%= cow._id %>" style="color:#0d6efd;text-decoration:none;"><%= cow.cowNumber %></a></td>
+              <td><%= cow.cowName %></td>
+              <td><%= cow.race || 'N/A' %></td>
+              <td><%= cow.dob ? cow.dob.toDateString() : 'N/A' %></td>
+              <td>
+                <% if (cow.notes && cow.notes.trim()) { %>
+                  <details>
+                    <summary>Preview</summary>
+                    <div class="notes-content"><%= cow.notes %></div>
+                  </details>
+                  <button type="button" class="add-button" style="background:#0d6efd" data-type="cow" data-id="<%= cow._id %>" data-notes="<%- cow.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
+                <% } else { %>N/A<% } %>
+              </td>
+              <td><button class="add-button" style="background:#0d6efd" onclick="toggleMoreInfo('cow','<%= cow._id %>')">More Info</button></td>
+              <td class="actions-inline">
+                <button class="add-button" style="background:#ffc107;color:#000" onclick="openEditModal('cow','<%= cow._id %>')">Edit</button>
+                <button class="add-button" style="background:#dc3545" onclick="confirmDelete('cow','<%= cow._id %>')">Delete</button>
+              </td>
+            </tr>
+            <tr id="cow-more-<%= cow._id %>" class="more-info-row" style="display:none;">
+              <td colspan="7">
+                <div class="detail-grid">
+                  <div><label>Mother #</label><span><% if (cow.motherCowNumber) { %><a href="/profile/cow/number/<%= encodeURIComponent(cow.motherCowNumber) %>" style="color:#0d6efd"><%= cow.motherCowNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Mother Name</label><span><%= cow.motherCowName || 'N/A' %></span></div>
+                  <div><label>Mother Breed</label><span><%= cow.motherCowBreed || 'N/A' %></span></div>
+                  <div><label>Sire #</label><span><% if (cow.sireBullNumber) { %><a href="/profile/bull/number/<%= encodeURIComponent(cow.sireBullNumber) %>" style="color:#0d6efd"><%= cow.sireBullNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Sire Name</label><span><%= cow.sireBullName || 'N/A' %></span></div>
+                  <div><label>Sire Breed</label><span><%= cow.sireBullBreed || 'N/A' %></span></div>
+                  <div><label>Last Calving</label><span><%= cow.lastCalving ? cow.lastCalving.toDateString() : 'N/A' %></span></div>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-  <section id="calves-section">
-      <h2>Calves <button class="add-button" onclick="openModal('calf')">Add Calf</button></h2>
-            <div class="table-container">
-                <table class="calf-table">
-                    <thead>
-                        <tr>
-              <th>Name</th>
-              <th>Breed</th>
-              <th>DOB</th>
-                            <th>Gender</th>
-                            <th>Notes</th>
-                            <th>More Info</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            <% calves.forEach(calf => { %>
-              <tr class="data-row" data-name="<%= calf.calfName || '' %>" data-breed="<%= calf.calfBreed || '' %>" data-dob="<%= calf.birthDate ? calf.birthDate.toISOString ? calf.birthDate.toISOString().slice(0,10) : new Date(calf.birthDate).toISOString().slice(0,10) : '' %>" data-notes="<%- (calf.notes || '').replace(/\"/g,'&quot;') %>" data-mother-number="<%= calf.motherCowNumber || '' %>"
-                data-mother-name="<%= calf.motherCowName || '' %>"
-                data-mother-breed="<%= calf.motherCowBreed || '' %>"
-                data-sire-number="<%= calf.sireBullNumber || '' %>"
-                data-sire-name="<%= calf.sireBullName || '' %>"
-                data-sire-breed="<%= calf.sireBullBreed || '' %>"
-                data-gender="<%= calf.gender || '' %>">
-                            <td><%= calf.calfName %></td>
-                            <td><%= calf.calfBreed || 'N/A' %></td>
-                            <td><%= calf.birthDate ? calf.birthDate.toDateString() : 'N/A' %></td>
-                            <td><%= calf.gender %></td>
-                            <td>
-                              <% if (calf.notes && calf.notes.trim()) { %>
-                                <details>
-                                  <summary>Preview</summary>
-                                  <div class="notes-content"><%= calf.notes %></div>
-                                </details>
-                                <button type="button" class="add-button" style="margin-top:6px" data-type="calf" data-id="<%= calf._id %>" data-notes="<%- calf.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
-                              <% } else { %>
-                                N/A
-                              <% } %>
-                            </td>
-                            <td>
-                              <button type="button" class="add-button" onclick="toggleMoreInfo('calf','<%= calf._id %>')">More info</button>
-                            </td>
-                            <td class="actions-inline">
-                              <button onclick="openEditModal('calf', '<%= calf._id %>')">Edit</button>
-                              <details style="display:inline-block; margin-left:6px;">
-                                <summary style="cursor:pointer; color:#dc3545;">Danger Zone</summary>
-                                <div style="background:#fff3f3; border:1px solid #f5c2c7; padding:8px; border-radius:4px; margin-top:6px; min-width:160px;">
-                                  <button onclick="confirmDelete('calf', '<%= calf._id %>')" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:4px;width:100%;">Delete</button>
-                                </div>
-                              </details>
-                            </td>
-                          </tr>
-                          <tr id="calf-more-<%= calf._id %>" class="more-info-row" style="display:none;">
-                            <td colspan="7">
-                              <div class="detail-grid">
-                                <div><label>Mother #</label><span><%= calf.motherCowNumber || 'N/A' %></span></div>
-                                <div><label>Mother Name</label><span><%= calf.motherCowName || 'N/A' %></span></div>
-                                <div><label>Mother Breed</label><span><%= calf.motherCowBreed || 'N/A' %></span></div>
-                                <div><label>Sire #</label><span><%= calf.sireBullNumber || 'N/A' %></span></div>
-                                <div><label>Sire Name</label><span><%= calf.sireBullName || 'N/A' %></span></div>
-                                <div><label>Sire Breed</label><span><%= calf.sireBullBreed || 'N/A' %></span></div>
-                              </div>
-                            </td>
-                          </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
+  <!-- Bulls Section -->
   <section id="bulls-section">
-      <h2>Bulls <button class="add-button" onclick="openModal('bull')">Add Bull</button></h2>
-            <div class="table-container">
-                <table class="bull-table">
-                    <thead>
-                        <tr>
-              <th>Bull #</th>
-              <th>Name</th>
-              <th>Breed</th>
-              <th>DOB</th>
-                            <th>Notes</th>
-                            <th>More Info</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            <% bulls.forEach(bull => { %>
-              <tr class="data-row" data-number="<%= bull.bullNumber || '' %>" data-name="<%= bull.bullName || '' %>" data-breed="<%= bull.race || '' %>" data-dob="<%= bull.dob ? bull.dob.toISOString ? bull.dob.toISOString().slice(0,10) : new Date(bull.dob).toISOString().slice(0,10) : '' %>" data-notes="<%- (bull.notes || '').replace(/\"/g,'&quot;') %>" data-mother-number="<%= bull.motherCowNumber || '' %>"
-                data-mother-name="<%= bull.motherCowName || '' %>"
-                data-mother-breed="<%= bull.motherCowBreed || '' %>"
-                data-sire-number="<%= bull.sireBullNumber || '' %>"
-                data-sire-name="<%= bull.sireBullName || '' %>"
-                data-sire-breed="<%= bull.sireBullBreed || '' %>">
-                            <td><%= bull.bullNumber %></td>
-                            <td><%= bull.bullName %></td>
-                            <td><%= bull.race || 'N/A' %></td>
-                            <td><%= bull.dob ? bull.dob.toDateString() : 'N/A' %></td>
-                            <td>
-                              <% if (bull.notes && bull.notes.trim()) { %>
-                                <details>
-                                  <summary>Preview</summary>
-                                  <div class="notes-content"><%= bull.notes %></div>
-                                </details>
-                                <button type="button" class="add-button" style="margin-top:6px" data-type="bull" data-id="<%= bull._id %>" data-notes="<%- bull.notes.replace(/\"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
-                              <% } else { %>
-                                N/A
-                              <% } %>
-                            </td>
-                            <td>
-                              <button type="button" class="add-button" onclick="toggleMoreInfo('bull','<%= bull._id %>')">More info</button>
-                            </td>
-                            <td class="actions-inline">
-                              <button onclick="openEditModal('bull', '<%= bull._id %>')">Edit</button>
-                              <details style="display:inline-block; margin-left:6px;">
-                                <summary style="cursor:pointer; color:#dc3545;">Danger Zone</summary>
-                                <div style="background:#fff3f3; border:1px solid #f5c2c7; padding:8px; border-radius:4px; margin-top:6px; min-width:160px;">
-                                  <button onclick="confirmDelete('bull', '<%= bull._id %>')" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:4px;width:100%;">Delete</button>
-                                </div>
-                              </details>
-                            </td>
-                          </tr>
-                          <tr id="bull-more-<%= bull._id %>" class="more-info-row" style="display:none;">
-                            <td colspan="7">
-                              <div class="detail-grid">
-                                <div><label>Mother #</label><span><%= bull.motherCowNumber || 'N/A' %></span></div>
-                                <div><label>Mother Name</label><span><%= bull.motherCowName || 'N/A' %></span></div>
-                                <div><label>Mother Breed</label><span><%= bull.motherCowBreed || 'N/A' %></span></div>
-                                <div><label>Sire #</label><span><%= bull.sireBullNumber || 'N/A' %></span></div>
-                                <div><label>Sire Name</label><span><%= bull.sireBullName || 'N/A' %></span></div>
-                                <div><label>Sire Breed</label><span><%= bull.sireBullBreed || 'N/A' %></span></div>
-                              </div>
-                            </td>
-                          </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+    <h2 style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">Bulls
+      <button id="add-bull-btn" class="add-button" onclick="openAddModal('bull', false)">Add Bull</button>
+      <button id="add-bull-ai-btn" class="add-button" style="background:#6f42c1; display:none;" onclick="openAddModal('bull', true)">Add Insemination Bull</button>
+    </h2>
+    <div class="bull-tabs">
+      <button id="tab-bulls-herd" type="button" class="bull-tab herd active">Herd Bulls</button>
+      <button id="tab-bulls-ai" type="button" class="bull-tab ai">Insemination Bulls</button>
+    </div>
+    <div class="table-container">
+      <table id="bulls-herd-table" class="bull-table">
+        <thead>
+          <tr>
+            <th>Bull #</th>
+            <th>Name</th>
+            <th>Breed</th>
+            <th>DOB</th>
+            <th>Notes</th>
+            <th>More Info</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% bulls.filter(b=>!b.isInsemination).forEach(bull => { %>
+            <tr id="bull-row-<%= bull._id %>" class="data-row" data-id="<%= bull._id %>" data-number="<%= bull.bullNumber || '' %>" data-name="<%= bull.bullName || '' %>" data-breed="<%= bull.race || '' %>" data-dob="<%= bull.dob ? (bull.dob.toISOString ? bull.dob.toISOString().slice(0,10) : new Date(bull.dob).toISOString().slice(0,10)) : '' %>" data-notes="<%- (bull.notes || '').replace(/"/g,'&quot;') %>" data-mother-number="<%= bull.motherCowNumber || '' %>" data-mother-name="<%= bull.motherCowName || '' %>" data-mother-breed="<%= bull.motherCowBreed || '' %>" data-sire-number="<%= bull.sireBullNumber || '' %>" data-sire-name="<%= bull.sireBullName || '' %>" data-sire-breed="<%= bull.sireBullBreed || '' %>">
+              <td><a href="/profile/bull/<%= bull._id %>" style="color:#0d6efd;text-decoration:none;"><%= bull.bullNumber %></a></td>
+              <td><%= bull.bullName %></td>
+              <td><%= bull.race || 'N/A' %></td>
+              <td><%= bull.dob ? bull.dob.toDateString() : 'N/A' %></td>
+              <td>
+                <% if (bull.notes && bull.notes.trim()) { %>
+                  <details><summary>Preview</summary><div class="notes-content"><%= bull.notes %></div></details>
+                  <button type="button" class="add-button" style="background:#0d6efd" data-type="bull" data-id="<%= bull._id %>" data-notes="<%- bull.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
+                <% } else { %>N/A<% } %>
+              </td>
+              <td><button class="add-button" style="background:#0d6efd" onclick="toggleMoreInfo('bull','<%= bull._id %>')">More Info</button></td>
+              <td class="actions-inline">
+                <button class="add-button" style="background:#ffc107;color:#000" onclick="openEditModal('bull','<%= bull._id %>')">Edit</button>
+                <button class="add-button" style="background:#dc3545" onclick="confirmDelete('bull','<%= bull._id %>')">Delete</button>
+              </td>
+            </tr>
+            <tr id="bull-more-<%= bull._id %>" class="more-info-row" style="display:none;">
+              <td colspan="7">
+                <div class="detail-grid">
+                  <div><label>Mother #</label><span><% if (bull.motherCowNumber) { %><a href="/profile/cow/number/<%= encodeURIComponent(bull.motherCowNumber) %>" style="color:#0d6efd"><%= bull.motherCowNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Mother Name</label><span><%= bull.motherCowName || 'N/A' %></span></div>
+                  <div><label>Mother Breed</label><span><%= bull.motherCowBreed || 'N/A' %></span></div>
+                  <div><label>Sire #</label><span><% if (bull.sireBullNumber) { %><a href="/profile/bull/number/<%= encodeURIComponent(bull.sireBullNumber) %>" style="color:#0d6efd"><%= bull.sireBullNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Sire Name</label><span><%= bull.sireBullName || 'N/A' %></span></div>
+                  <div><label>Sire Breed</label><span><%= bull.sireBullBreed || 'N/A' %></span></div>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <!-- Insemination Bulls (AI) -->
+      <table id="bulls-ai-table" class="bull-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Bull #</th>
+            <th>Name</th>
+            <th>Breed</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% bulls.filter(b=>b.isInsemination).forEach(bull => { %>
+            <tr id="bull-row-<%= bull._id %>" class="data-row" data-id="<%= bull._id %>" data-number="<%= bull.bullNumber || '' %>" data-name="<%= bull.bullName || '' %>" data-breed="<%= bull.race || '' %>" data-dob="<%= bull.dob ? (bull.dob.toISOString ? bull.dob.toISOString().slice(0,10) : new Date(bull.dob).toISOString().slice(0,10)) : '' %>" data-notes="<%- (bull.notes || '').replace(/\"/g,'&quot;') %>">
+              <td><a href="/profile/bull/<%= bull._id %>" style="color:#6f42c1;text-decoration:none;"><%= bull.bullNumber %></a></td>
+              <td><%= bull.bullName %></td>
+              <td><%= bull.race || 'N/A' %></td>
+              <td>
+                <% if (bull.notes && bull.notes.trim()) { %>
+                  <details><summary>Preview</summary><div class="notes-content"><%= bull.notes %></div></details>
+                  <button type="button" class="add-button" style="background:#6f42c1" data-type="bull" data-id="<%= bull._id %>" data-notes="<%- bull.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
+                <% } else { %>N/A<% } %>
+              </td>
+              <td class="actions-inline">
+                <button class="add-button" style="background:#ffc107;color:#000" onclick="openEditModal('bull','<%= bull._id %>')">Edit</button>
+                <button class="add-button" style="background:#dc3545" onclick="confirmDelete('bull','<%= bull._id %>')">Delete</button>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-        <!-- Modals -->
-        <div id="modal" class="modal">
-          <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-title">Add Cow</h2>
-            <form id="modal-form" action="/add-cattle" method="POST">
-              <!-- Dynamic form fields will be injected by JavaScript -->
-            </form>
-          </div>
+  <!-- Calves Section -->
+  <section id="calves-section">
+    <h2>Calves <button class="add-button" onclick="openAddModal('calf')">Add Calf</button></h2>
+    <div class="table-container">
+      <table class="calf-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Breed</th>
+            <th>DOB</th>
+            <th>Gender</th>
+            <th>Notes</th>
+            <th>More Info</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% calves.forEach(calf => { %>
+            <tr id="calf-row-<%= calf._id %>" class="data-row" data-id="<%= calf._id %>" data-name="<%= calf.calfName || '' %>" data-breed="<%= calf.calfBreed || '' %>" data-dob="<%= calf.birthDate ? (calf.birthDate.toISOString ? calf.birthDate.toISOString().slice(0,10) : new Date(calf.birthDate).toISOString().slice(0,10)) : '' %>" data-gender="<%= calf.gender || '' %>" data-notes="<%- (calf.notes || '').replace(/"/g,'&quot;') %>" data-mother-number="<%= calf.motherCowNumber || '' %>" data-mother-name="<%= calf.motherCowName || '' %>" data-mother-breed="<%= calf.motherCowBreed || '' %>" data-sire-number="<%= calf.sireBullNumber || '' %>" data-sire-name="<%= calf.sireBullName || '' %>" data-sire-breed="<%= calf.sireBullBreed || '' %>">
+              <td><a href="/profile/calf/<%= calf._id %>" style="color:#0d6efd;text-decoration:none;"><%= calf.calfName || 'Unnamed Calf' %></a></td>
+              <td><%= calf.calfBreed || 'N/A' %></td>
+              <td><%= calf.birthDate ? calf.birthDate.toDateString() : 'N/A' %></td>
+              <td><%= calf.gender || 'N/A' %></td>
+              <td>
+                <% if (calf.notes && calf.notes.trim()) { %>
+                  <details><summary>Preview</summary><div class="notes-content"><%= calf.notes %></div></details>
+                  <button type="button" class="add-button" style="background:#0d6efd" data-type="calf" data-id="<%= calf._id %>" data-notes="<%- calf.notes.replace(/"/g,'&quot;') %>" onclick="openNotesViewer(this)">Open Viewer</button>
+                <% } else { %>N/A<% } %>
+              </td>
+              <td><button class="add-button" style="background:#0d6efd" onclick="toggleMoreInfo('calf','<%= calf._id %>')">More Info</button></td>
+              <td class="actions-inline">
+                <button class="add-button" style="background:#ffc107;color:#000" onclick="openEditModal('calf','<%= calf._id %>')">Edit</button>
+                <button class="add-button" style="background:#dc3545" onclick="confirmDelete('calf','<%= calf._id %>')">Delete</button>
+              </td>
+            </tr>
+            <tr id="calf-more-<%= calf._id %>" class="more-info-row" style="display:none;">
+              <td colspan="7">
+                <div class="detail-grid">
+                  <div><label>Mother #</label><span><% if (calf.motherCowNumber) { %><a href="/profile/cow/number/<%= encodeURIComponent(calf.motherCowNumber) %>" style="color:#0d6efd"><%= calf.motherCowNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Mother Name</label><span><%= calf.motherCowName || 'N/A' %></span></div>
+                  <div><label>Mother Breed</label><span><%= calf.motherCowBreed || 'N/A' %></span></div>
+                  <div><label>Sire #</label><span><% if (calf.sireBullNumber) { %><a href="/profile/bull/number/<%= encodeURIComponent(calf.sireBullNumber) %>" style="color:#0d6efd"><%= calf.sireBullNumber %></a><% } else { %>N/A<% } %></span></div>
+                  <div><label>Sire Name</label><span><%= calf.sireBullName || 'N/A' %></span></div>
+                  <div><label>Sire Breed</label><span><%= calf.sireBullBreed || 'N/A' %></span></div>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Add/Edit Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 id="modal-title">Add</h2>
+      <form id="modal-form"></form>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeConfirmModal()">&times;</span>
+      <h2 id="confirm-title">Confirm</h2>
+      <div id="confirm-body"></div>
+      <div style="margin-top:12px;text-align:right;">
+        <button id="confirm-yes" class="add-button" style="background:#dc3545">Confirm</button>
+        <button type="button" class="add-button" style="background:#6c757d" onclick="closeConfirmModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes Viewer Modal -->
+  <div id="notes-viewer-modal" class="modal">
+    <div class="modal-content" style="max-width:480px;">
+      <span class="close" onclick="closeNotesViewer()">&times;</span>
+      <h2 style="margin-top:0;">Notes Viewer</h2>
+      <textarea id="notes-viewer-textarea" rows="12" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:0.8rem; resize:vertical;"></textarea>
+      <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <small style="color:#6c757d;">Edit notes and click Save to persist.</small>
+        <div style="text-align:right; display:flex; gap:8px;">
+          <button type="button" class="add-button" style="background:#198754" onclick="saveNotesFromViewer()">Save</button>
+          <button type="button" class="add-button" style="background:#6c757d" onclick="closeNotesViewer()">Close</button>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div id="confirm-modal" class="modal">
-          <div class="modal-content">
-            <span class="close" onclick="closeConfirmModal()">&times;</span>
-            <h2 id="confirm-title">Confirm</h2>
-            <div id="confirm-body"></div>
-            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-              <button id="confirm-yes" style="background-color: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Yes, Delete</button>
-              <button onclick="closeConfirmModal()" style="background-color: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Cancel</button>
-            </div>
-          </div>
-        </div>
+  <div id="toast" class="toast"></div>
 
-        <div id="notes-viewer-modal" class="modal">
-          <div class="modal-content" style="width: 90%; max-width: 400px;">
-            <span class="close" onclick="closeNotesViewer()">&times;</span>
-            <h2>Notes Viewer</h2>
-            <textarea id="notes-viewer-textarea" rows="10" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" readonly></textarea>
-            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-              <button onclick="saveNotesFromViewer()" style="background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Save Changes</button>
-              <button onclick="closeNotesViewer()" style="background-color: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Close</button>
-            </div>
-          </div>
-        </div>
-
-    <!-- Toasts -->
-    <div id="toast" class="toast"></div>
-    </main>
-
-    <script>
+  <script>
       // Smooth scroll to a section by id
       function scrollToSection(id){
         const el = document.getElementById(id);
@@ -436,113 +344,74 @@
       const modalTitle = document.getElementById('modal-title');
       const modalForm = document.getElementById('modal-form');
 
-      function openModal(type) {
+      function openAddModal(type, isAI) {
         modal.style.display = 'block';
-        modalTitle.textContent = `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        const ai = !!isAI;
+        modalTitle.textContent = `Add ${ai && type==='bull' ? 'Insemination Bull' : (type.charAt(0).toUpperCase() + type.slice(1))}`;
         // Mark form mode so submit handler knows we're adding
         modalForm.dataset.mode = 'add';
 
         let formFields = '';
-
         if (type === 'cow') {
           formFields = `
-            <input type="hidden" name="type" value="cow">
-            <label for="registeringNumber">Cow Number:</label>
-            <input type="text" id="registeringNumber" name="registeringNumber" required oninvalid="this.setCustomValidity('Provide a cow number')" oninput="this.setCustomValidity('')"><br>
-            <label for="registeringName">Cow Name:</label>
-            <input type="text" id="registeringName" name="registeringName" required oninvalid="this.setCustomValidity('Provide a cow name')" oninput="this.setCustomValidity('')"><br>
-            <label for="registeringRace">Cow Race:</label>
-            <input type="text" id="registeringRace" name="registeringRace" required oninvalid="this.setCustomValidity('Provide a cow race')" oninput="this.setCustomValidity('')"><br>
-            <label for="dob">Date of Birth:</label>
-            <input type="date" id="dob" name="dob" oninvalid="this.setCustomValidity('Provide a date of birth')" oninput="this.setCustomValidity('')"><br>
-            <label for="lastCalving">Last Calving:</label>
-            <input type="date" id="lastCalving" name="lastCalving"><br>
-            <label for="notes">Notes:</label>
-            <textarea id="notes" name="notes"></textarea><br>
-            <label for="motherCowNumber">Mother Cow Number:</label>
-            <input type="text" id="motherCowNumber" name="motherCowNumber" oninvalid="this.setCustomValidity('Provide a mother cow number')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowName">Mother Cow Name:</label>
-            <input type="text" id="motherCowName" name="motherCowName" oninvalid="this.setCustomValidity('Provide a mother cow name')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowBreed">Mother Cow Breed:</label>
-            <input type="text" id="motherCowBreed" name="motherCowBreed" oninvalid="this.setCustomValidity('Provide a mother cow breed')" oninput="this.setCustomValidity('')"><br>
-            <label for="sireBullNumber">Sire Bull Number:</label>
-            <input type="text" id="sireBullNumber" name="sireBullNumber"><br>
-            <label for="sireBullName">Sire Bull Name:</label>
-            <input type="text" id="sireBullName" name="sireBullName"><br>
-            <label for="sireBullBreed">Sire Bull Breed:</label>
-            <input type="text" id="sireBullBreed" name="sireBullBreed"><br>
-            <div class="actions-inline" style="margin-top:8px;">
-              <button type="submit" class="add-button" style="background:#198754;">Save</button>
-              <button type="button" class="add-button" style="background:#6c757d;" onclick="closeModal()">Cancel</button>
-            </div>
-          `;
+            <div class="form-grid">
+              <label>Cow Number:</label><input id="registeringNumber" name="registeringNumber" required>
+              <label>Cow Name:</label><input name="registeringName" required>
+              <label>Cow Breed:</label><input name="registeringRace" required>
+              <label>DOB:</label><input type="date" name="dob">
+              <label>Last Calving:</label><input type="date" name="lastCalving">
+              <label>Notes:</label><textarea name="notes" rows="3"></textarea>
+              <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" oninput="autoFillParent('cow','motherCowNumber')">
+              <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+              <input type="hidden" name="motherCowName"><input type="hidden" name="motherCowBreed">
+              <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" oninput="autoFillParent('bull','sireBullNumber')">
+              <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+              <input type="hidden" name="sireBullName"><input type="hidden" name="sireBullBreed">
+            </div>`;
+        } else if (type === 'bull') {
+          if (ai) {
+            formFields = `
+              <div class="form-grid">
+                <label>Bull Number:</label><input id="registeringNumber" name="registeringNumber" required>
+                <label>Bull Name:</label><input name="registeringName" required>
+                <label>Bull Breed:</label><input name="registeringRace" required>
+                <label>Notes:</label><textarea name="notes" rows="3"></textarea>
+              </div>
+              <input type="hidden" name="isInsemination" value="true">`;
+          } else {
+            formFields = `
+              <div class="form-grid">
+                <label>Bull Number:</label><input id="registeringNumber" name="registeringNumber" required>
+                <label>Bull Name:</label><input name="registeringName" required>
+                <label>Bull Breed:</label><input name="registeringRace" required>
+                <label>DOB:</label><input type="date" name="dob">
+                <label>Notes:</label><textarea name="notes" rows="3"></textarea>
+                <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" oninput="autoFillParent('cow','motherCowNumber')">
+                <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+                <input type="hidden" name="motherCowName"><input type="hidden" name="motherCowBreed">
+                <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" oninput="autoFillParent('bull','sireBullNumber')">
+                <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+                <input type="hidden" name="sireBullName"><input type="hidden" name="sireBullBreed">
+              </div>`;
+          }
         } else if (type === 'calf') {
           formFields = `
-            <input type="hidden" name="type" value="calf">
-            <label for="calfName">Calf Name:</label>
-            <input type="text" id="calfName" name="calfName" required oninvalid="this.setCustomValidity('Provide a calf name')" oninput="this.setCustomValidity('')"><br>
-            <label for="calfBreed">Calf Breed:</label>
-            <input type="text" id="calfBreed" name="calfBreed" required oninvalid="this.setCustomValidity('Provide a calf breed')" oninput="this.setCustomValidity('')"><br>
-            <label for="birthDate">Date of Birth:</label>
-            <input type="date" id="birthDate" name="birthDate" required oninvalid="this.setCustomValidity('Provide a date of birth')" oninput="this.setCustomValidity('')"><br>
-            <label for="gender">Gender:</label>
-            <select id="gender" name="gender" required oninvalid="this.setCustomValidity('Select calf gender')" oninput="this.setCustomValidity('')">
-              <option value="" disabled selected>Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select><br>
-            <label for="notes">Notes:</label>
-            <textarea id="notes" name="notes"></textarea><br>
-            <label for="motherCowNumber">Mother Cow Number:</label>
-            <input type="text" id="motherCowNumber" name="motherCowNumber" required oninvalid="this.setCustomValidity('Provide a mother cow number')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowName">Mother Cow Name:</label>
-            <input type="text" id="motherCowName" name="motherCowName" required oninvalid="this.setCustomValidity('Provide a mother cow name')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowBreed">Mother Cow Breed:</label>
-            <input type="text" id="motherCowBreed" name="motherCowBreed" required oninvalid="this.setCustomValidity('Provide a mother cow breed')" oninput="this.setCustomValidity('')"><br>
-            <label for="sireBullNumber">Sire Bull Number:</label>
-            <input type="text" id="sireBullNumber" name="sireBullNumber"><br>
-            <label for="sireBullName">Sire Bull Name:</label>
-            <input type="text" id="sireBullName" name="sireBullName"><br>
-            <label for="sireBullBreed">Sire Bull Breed:</label>
-            <input type="text" id="sireBullBreed" name="sireBullBreed"><br>
-            <div class="actions-inline" style="margin-top:8px;">
-              <button type="submit" class="add-button" style="background:#198754;">Save</button>
-              <button type="button" class="add-button" style="background:#6c757d;" onclick="closeModal()">Cancel</button>
-            </div>
-          `;
-        } else if (type === 'bull') {
-          formFields = `
-            <input type="hidden" name="type" value="bull">
-            <label for="registeringNumber">Bull Number:</label>
-            <input type="text" id="registeringNumber" name="registeringNumber" required oninvalid="this.setCustomValidity('Provide a bull number')" oninput="this.setCustomValidity('')"><br>
-            <label for="registeringName">Bull Name:</label>
-            <input type="text" id="registeringName" name="registeringName" required oninvalid="this.setCustomValidity('Provide a bull name')" oninput="this.setCustomValidity('')"><br>
-            <label for="registeringRace">Bull Race:</label>
-            <input type="text" id="registeringRace" name="registeringRace" required oninvalid="this.setCustomValidity('Provide a bull race')" oninput="this.setCustomValidity('')"><br>
-            <label for="dob">Date of Birth:</label>
-            <input type="date" id="dob" name="dob" oninvalid="this.setCustomValidity('Provide a date of birth')" oninput="this.setCustomValidity('')"><br>
-            <label for="notes">Notes:</label>
-            <textarea id="notes" name="notes"></textarea><br>
-            <label for="motherCowNumber">Mother Cow Number:</label>
-            <input type="text" id="motherCowNumber" name="motherCowNumber" oninvalid="this.setCustomValidity('Provide a mother cow number')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowName">Mother Cow Name:</label>
-            <input type="text" id="motherCowName" name="motherCowName" oninvalid="this.setCustomValidity('Provide a mother cow name')" oninput="this.setCustomValidity('')"><br>
-            <label for="motherCowBreed">Mother Cow Breed:</label>
-            <input type="text" id="motherCowBreed" name="motherCowBreed" oninvalid="this.setCustomValidity('Provide a mother cow breed')" oninput="this.setCustomValidity('')"><br>
-            <label for="sireBullNumber">Sire Bull Number:</label>
-            <input type="text" id="sireBullNumber" name="sireBullNumber"><br>
-            <label for="sireBullName">Sire Bull Name:</label>
-            <input type="text" id="sireBullName" name="sireBullName"><br>
-            <label for="sireBullBreed">Sire Bull Breed:</label>
-            <input type="text" id="sireBullBreed" name="sireBullBreed"><br>
-            <div class="actions-inline" style="margin-top:8px;">
-              <button type="submit" class="add-button" style="background:#198754;">Save</button>
-              <button type="button" class="add-button" style="background:#6c757d;" onclick="closeModal()">Cancel</button>
-            </div>
-          `;
+            <div class="form-grid">
+              <label>Calf Name:</label><input name="calfName" required>
+              <label>Calf Breed:</label><input name="calfBreed" required>
+              <label>DOB:</label><input type="date" name="birthDate" required>
+              <label>Gender:</label><select name="gender" required><option value="" disabled selected>Select</option><option value="male">Male</option><option value="female">Female</option></select>
+              <label>Notes:</label><textarea name="notes" rows="3"></textarea>
+              <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" oninput="autoFillParent('cow','motherCowNumber')">
+              <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+              <input type="hidden" name="motherCowName"><input type="hidden" name="motherCowBreed">
+              <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" oninput="autoFillParent('bull','sireBullNumber')">
+              <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Enter number to auto-fill</span>
+              <input type="hidden" name="sireBullName"><input type="hidden" name="sireBullBreed">
+            </div>`;
         }
 
-        modalForm.innerHTML = formFields;
+        modalForm.innerHTML = `<input type="hidden" name="type" value="${type}">` + formFields + `<div style="margin-top:12px;text-align:right;"><button type="submit" class="add-button" style="background:#198754">Save</button><button type="button" class="add-button" style="background:#6c757d" onclick="closeModal()">Cancel</button></div>`;
         clearFieldErrors();
         addRealtimeValidationHandlers();
       }
@@ -590,7 +459,7 @@
         openConfirmModal('Confirm Deletion', body, () => {
           deleteEntry(type, id, null);
           closeConfirmModal();
-        });
+        }, { label: 'Yes, Delete', variant: 'danger' });
       }
 
       // Fix close button functionality for modals
@@ -809,7 +678,30 @@
         });
       }
 
-  ['cow', 'calf', 'bull'].forEach(type => addSearchBar(type));
+  ['cow', 'bull', 'calf'].forEach(type => addSearchBar(type));
+
+      // Bulls tab toggle for Herd vs Insemination
+      (function setupBullTabs(){
+        const herdBtn = document.getElementById('tab-bulls-herd');
+        const aiBtn = document.getElementById('tab-bulls-ai');
+        const herdTable = document.getElementById('bulls-herd-table');
+        const aiTable = document.getElementById('bulls-ai-table');
+        const addBullBtn = document.getElementById('add-bull-btn');
+        const addAIBtn = document.getElementById('add-bull-ai-btn');
+        if (!herdBtn || !aiBtn || !herdTable || !aiTable) return;
+        function activate(which){
+          const herdActive = which === 'herd';
+          herdTable.style.display = herdActive ? '' : 'none';
+          aiTable.style.display = herdActive ? 'none' : '';
+          herdBtn.classList.toggle('active', herdActive);
+          aiBtn.classList.toggle('active', !herdActive);
+          if (addBullBtn) addBullBtn.style.display = herdActive ? '' : 'none';
+          if (addAIBtn) addAIBtn.style.display = herdActive ? 'none' : '';
+        }
+        herdBtn.addEventListener('click', ()=> activate('herd'));
+        aiBtn.addEventListener('click', ()=> activate('ai'));
+        activate('herd');
+      })();
 
       function openEditModal(type, id) {
         modal.style.display = 'block';
@@ -817,122 +709,120 @@
         // Mark form mode so submit handler knows we're editing
         modalForm.dataset.mode = 'edit';
 
+        // Show loading state while fetching
+        modalForm.innerHTML = '<div style="padding:10px;font-size:.85rem;color:#6c757d;">Loading...</div>';
         fetch(`/get-cattle?id=${id}&type=${type}`)
-          .then(response => {
+          .then(async response => {
             if (!response.ok) {
-              throw new Error('Failed to fetch cattle data');
+              const txt = await response.text();
+              throw new Error(txt || 'Failed to fetch cattle data');
             }
             return response.json();
           })
           .then(data => {
+            if (!data || data.error) {
+              showCustomPopup(data && data.error ? data.error : 'Entry not found', 'error');
+              modalForm.innerHTML = '<div style="padding:10px;color:#dc3545;">Entry not found.</div>';
+              return;
+            }
             const fmt = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
             let formFields = '';
 
             if (type === 'cow') {
-              const dobVal = fmt(data.dob);
-              const lastCalvingVal = fmt(data.lastCalving);
               formFields = `
-                <input type="hidden" name="type" value="cow">
-                <input type="hidden" name="id" value="${id}">
                 <div class="form-grid">
-                  <label for="registeringNumber">Cow Number:</label>
-                  <input type="text" id="registeringNumber" name="registeringNumber" value="${data.cowNumber}" required>
-                  <label for="registeringName">Cow Name:</label>
-                  <input type="text" id="registeringName" name="registeringName" value="${data.cowName}" required>
-                  <label for="registeringRace">Cow Race:</label>
-                  <input type="text" id="registeringRace" name="registeringRace" value="${data.race}" required>
-                  <label for="dob">Date of Birth:</label>
-                  <input type="date" id="dob" name="dob" value="${dobVal}">
-                  <label for="lastCalving">Last Calving:</label>
-                  <input type="date" id="lastCalving" name="lastCalving" value="${lastCalvingVal}">
-                  <label for="notes">Notes:</label>
-                  <textarea id="notes" name="notes" rows="4">${data.notes || ''}</textarea>
-                  <label for="motherCowNumber">Mother Cow Number:</label>
-                  <input type="text" id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}">
-                  <label for="motherCowName">Mother Cow Name:</label>
-                  <input type="text" id="motherCowName" name="motherCowName" value="${data.motherCowName || ''}">
-                  <label for="motherCowBreed">Mother Cow Breed:</label>
-                  <input type="text" id="motherCowBreed" name="motherCowBreed" value="${data.motherCowBreed || ''}">
-                  <label for="sireBullNumber">Sire Bull Number:</label>
-                  <input type="text" id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}">
-                  <label for="sireBullName">Sire Bull Name:</label>
-                  <input type="text" id="sireBullName" name="sireBullName" value="${data.sireBullName || ''}">
-                  <label for="sireBullBreed">Sire Bull Breed:</label>
-                  <input type="text" id="sireBullBreed" name="sireBullBreed" value="${data.sireBullBreed || ''}">
-                </div>
-              `;
-            } else if (type === 'calf') {
-              const birthDateVal = fmt(data.birthDate);
-              formFields = `
-                <input type="hidden" name="type" value="calf">
-                <input type="hidden" name="id" value="${id}">
-                <div class="form-grid">
-                  <label for="calfName">Calf Name:</label>
-                  <input type="text" id="calfName" name="calfName" value="${data.calfName || ''}" required>
-                  <label for="calfBreed">Calf Breed:</label>
-                  <input type="text" id="calfBreed" name="calfBreed" value="${data.calfBreed || ''}" required>
-                  <label for="birthDate">Date of Birth:</label>
-                  <input type="date" id="birthDate" name="birthDate" value="${birthDateVal}">
-                  <label for="gender">Gender:</label>
-                  <select id="gender" name="gender" required>
-                    <option value="male" ${data.gender === 'male' ? 'selected' : ''}>Male</option>
-                    <option value="female" ${data.gender === 'female' ? 'selected' : ''}>Female</option>
-                  </select>
-                  <label for="notes">Notes:</label>
-                  <textarea id="notes" name="notes" rows="4">${data.notes || ''}</textarea>
-                  <label for="motherCowNumber">Mother Cow Number:</label>
-                  <input type="text" id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}">
-                  <label for="motherCowName">Mother Cow Name:</label>
-                  <input type="text" id="motherCowName" name="motherCowName" value="${data.motherCowName || ''}">
-                  <label for="motherCowBreed">Mother Cow Breed:</label>
-                  <input type="text" id="motherCowBreed" name="motherCowBreed" value="${data.motherCowBreed || ''}">
-                  <label for="sireBullNumber">Sire Bull Number:</label>
-                  <input type="text" id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}">
-                  <label for="sireBullName">Sire Bull Name:</label>
-                  <input type="text" id="sireBullName" name="sireBullName" value="${data.sireBullName || ''}">
-                  <label for="sireBullBreed">Sire Bull Breed:</label>
-                  <input type="text" id="sireBullBreed" name="sireBullBreed" value="${data.sireBullBreed || ''}">
-                </div>
-              `;
+                  <label>Cow Number:</label><input id="registeringNumber" name="registeringNumber" value="${data.cowNumber || ''}" required>
+                  <label>Cow Name:</label><input name="registeringName" value="${data.cowName || ''}" required>
+                  <label>Cow Breed:</label><input name="registeringRace" value="${data.race || ''}" required>
+                  <label>DOB:</label><input type="date" name="dob" value="${fmt(data.dob)}">
+                  <label>Last Calving:</label><input type="date" name="lastCalving" value="${fmt(data.lastCalving)}">
+                  <label>Notes:</label><textarea name="notes" rows="3">${data.notes || ''}</textarea>
+                  <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}" oninput="autoFillParent('cow','motherCowNumber')">
+                  <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                  <input type="hidden" name="motherCowName" value="${data.motherCowName || ''}"><input type="hidden" name="motherCowBreed" value="${data.motherCowBreed || ''}">
+                  <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}" oninput="autoFillParent('bull','sireBullNumber')">
+                  <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                  <input type="hidden" name="sireBullName" value="${data.sireBullName || ''}"><input type="hidden" name="sireBullBreed" value="${data.sireBullBreed || ''}">
+                </div>`;
             } else if (type === 'bull') {
-              const dobVal = fmt(data.dob);
+              if (data.isInsemination) {
+                formFields = `
+                  <div class="form-grid">
+                    <label>Bull Number:</label><input id="registeringNumber" name="registeringNumber" value="${data.bullNumber || ''}" required>
+                    <label>Bull Name:</label><input name="registeringName" value="${data.bullName || ''}" required>
+                    <label>Bull Breed:</label><input name="registeringRace" value="${data.race || ''}" required>
+                    <label>Notes:</label><textarea name="notes" rows="3">${data.notes || ''}</textarea>
+                  </div>
+                  <input type="hidden" name="isInsemination" value="true">`;
+              } else {
+                formFields = `
+                  <div class="form-grid">
+                    <label>Bull Number:</label><input id="registeringNumber" name="registeringNumber" value="${data.bullNumber || ''}" required>
+                    <label>Bull Name:</label><input name="registeringName" value="${data.bullName || ''}" required>
+                    <label>Bull Breed:</label><input name="registeringRace" value="${data.race || ''}" required>
+                    <label>DOB:</label><input type="date" name="dob" value="${fmt(data.dob)}">
+                    <label>Notes:</label><textarea name="notes" rows="3">${data.notes || ''}</textarea>
+                    <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}" oninput="autoFillParent('cow','motherCowNumber')">
+                    <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                    <input type="hidden" name="motherCowName" value="${data.motherCowName || ''}"><input type="hidden" name="motherCowBreed" value="${data.motherCowBreed || ''}">
+                    <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}" oninput="autoFillParent('bull','sireBullNumber')">
+                    <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                    <input type="hidden" name="sireBullName" value="${data.sireBullName || ''}"><input type="hidden" name="sireBullBreed" value="${data.sireBullBreed || ''}">
+                  </div>
+                  <div style="margin-top:8px; font-size:.85rem;">
+                    <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                      <input type="checkbox" id="isInseminationChk"> Mark as Insemination Bull (no parents)
+                    </label>
+                  </div>`;
+              }
+            } else if (type === 'calf') {
               formFields = `
-                <input type="hidden" name="type" value="bull">
-                <input type="hidden" name="id" value="${id}">
                 <div class="form-grid">
-                  <label for="registeringNumber">Bull Number:</label>
-                  <input type="text" id="registeringNumber" name="registeringNumber" value="${data.bullNumber || ''}" required>
-                  <label for="registeringName">Bull Name:</label>
-                  <input type="text" id="registeringName" name="registeringName" value="${data.bullName || ''}" required>
-                  <label for="registeringRace">Bull Race:</label>
-                  <input type="text" id="registeringRace" name="registeringRace" value="${data.race || ''}" required>
-                  <label for="dob">Date of Birth:</label>
-                  <input type="date" id="dob" name="dob" value="${dobVal}">
-                  <label for="notes">Notes:</label>
-                  <textarea id="notes" name="notes" rows="4">${data.notes || ''}</textarea>
-                  <label for="motherCowNumber">Mother Cow Number:</label>
-                  <input type="text" id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}">
-                  <label for="motherCowName">Mother Cow Name:</label>
-                  <input type="text" id="motherCowName" name="motherCowName" value="${data.motherCowName || ''}">
-                  <label for="motherCowBreed">Mother Cow Breed:</label>
-                  <input type="text" id="motherCowBreed" name="motherCowBreed" value="${data.motherCowBreed || ''}">
-                  <label for="sireBullNumber">Sire Bull Number:</label>
-                  <input type="text" id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}">
-                  <label for="sireBullName">Sire Bull Name:</label>
-                  <input type="text" id="sireBullName" name="sireBullName" value="${data.sireBullName || ''}">
-                  <label for="sireBullBreed">Sire Bull Breed:</label>
-                  <input type="text" id="sireBullBreed" name="sireBullBreed" value="${data.sireBullBreed || ''}">
-                </div>
-              `;
+                  <label>Calf Name:</label><input name="calfName" value="${data.calfName || ''}" required>
+                  <label>Calf Breed:</label><input name="calfBreed" value="${data.calfBreed || ''}" required>
+                  <label>DOB:</label><input type="date" name="birthDate" value="${fmt(data.birthDate)}" required>
+                  <label>Gender:</label><select name="gender" required><option value="male" ${data.gender==='male'?'selected':''}>Male</option><option value="female" ${data.gender==='female'?'selected':''}>Female</option></select>
+                  <label>Notes:</label><textarea name="notes" rows="3">${data.notes || ''}</textarea>
+                  <label>Mother Cow #:</label><input id="motherCowNumber" name="motherCowNumber" value="${data.motherCowNumber || ''}" oninput="autoFillParent('cow','motherCowNumber')">
+                  <span class="parent-meta" id="motherCowNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                  <input type="hidden" name="motherCowName" value="${data.motherCowName || ''}"><input type="hidden" name="motherCowBreed" value="${data.motherCowBreed || ''}">
+                  <label>Sire Bull #:</label><input id="sireBullNumber" name="sireBullNumber" value="${data.sireBullNumber || ''}" oninput="autoFillParent('bull','sireBullNumber')">
+                  <span class="parent-meta" id="sireBullNumber_meta" style="grid-column:1 / -1;">Auto-fill</span>
+                  <input type="hidden" name="sireBullName" value="${data.sireBullName || ''}"><input type="hidden" name="sireBullBreed" value="${data.sireBullBreed || ''}">
+                </div>`;
             }
 
-            modalForm.innerHTML = formFields + `
-              <div class="actions-inline" style="margin-top:8px;">
-                <button type="submit" class="add-button" style="background:#198754;">Save</button>
-                <button type="button" class="add-button" style="background:#6c757d;" onclick="closeModal()">Cancel</button>
-              </div>`;
+            modalForm.innerHTML = `<input type="hidden" name="type" value="${type}"><input type="hidden" name="id" value="${id}">` + formFields + `<div style="margin-top:12px;text-align:right;"><button type="submit" class="add-button" style="background:#198754">Save</button><button type="button" class="add-button" style="background:#6c757d" onclick="closeModal()">Cancel</button></div>`;
             clearFieldErrors();
             addRealtimeValidationHandlers();
+            // Autofill existing parent numbers immediately
+            if (data.motherCowNumber) autoFillParent('cow','motherCowNumber');
+            if (data.sireBullNumber) autoFillParent('bull','sireBullNumber');
+            // Wire conversion toggle for bulls
+            if (type === 'bull' && !data.isInsemination) {
+              const chk = document.getElementById('isInseminationChk');
+              if (chk) {
+                chk.addEventListener('change', (e)=>{
+                  const on = e.target.checked;
+                  const mc = document.getElementById('motherCowNumber');
+                  const sc = document.getElementById('sireBullNumber');
+                  if (on) {
+                    // Clear and disable parent fields
+                    if (mc) { mc.value=''; mc.disabled=true; }
+                    if (sc) { sc.value=''; sc.disabled=true; }
+                    // Inject hidden field
+                    let h = modalForm.querySelector('input[name="isInsemination"]');
+                    if (!h) { h = document.createElement('input'); h.type='hidden'; h.name='isInsemination'; modalForm.appendChild(h); }
+                    h.value = 'true';
+                  } else {
+                    if (mc) mc.disabled=false;
+                    if (sc) sc.disabled=false;
+                    const h = modalForm.querySelector('input[name="isInsemination"]');
+                    if (h) h.remove();
+                  }
+                });
+              }
+            }
             // Keep original for diffing using exact form field names per type
             if (type === 'cow') {
               window._currentEditOriginal = {
@@ -973,18 +863,19 @@
                 registeringRace: data.race || '',
                 dob: fmt(data.dob),
                 notes: data.notes || '',
-                motherCowNumber: data.motherCowNumber || '',
-                motherCowName: data.motherCowName || '',
-                motherCowBreed: data.motherCowBreed || '',
-                sireBullNumber: data.sireBullNumber || '',
-                sireBullName: data.sireBullName || '',
-                sireBullBreed: data.sireBullBreed || '',
+                motherCowNumber: data.isInsemination ? '' : (data.motherCowNumber || ''),
+                motherCowName: data.isInsemination ? '' : (data.motherCowName || ''),
+                motherCowBreed: data.isInsemination ? '' : (data.motherCowBreed || ''),
+                sireBullNumber: data.isInsemination ? '' : (data.sireBullNumber || ''),
+                sireBullName: data.isInsemination ? '' : (data.sireBullName || ''),
+                sireBullBreed: data.isInsemination ? '' : (data.sireBullBreed || ''),
               };
             }
           })
           .catch(err => {
             console.error('Error fetching entry data:', err);
             showCustomPopup('An error occurred while fetching entry data.', 'error');
+            modalForm.innerHTML = '<div style="padding:10px;color:#dc3545;">Failed to load entry.</div>';
           });
       }
 
@@ -1037,36 +928,46 @@
         try {
           clearFormError();
           clearFieldErrors();
-          if (mode === 'add') {
-            const resp = await fetch('/add-cattle', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
+          // If editing, compute diffs and ask for confirmation
+          if (mode === 'edit' && window._currentEditOriginal) {
+            const original = window._currentEditOriginal;
+            const displayMap = {
+              registeringNumber: 'Number',
+              registeringName: 'Name',
+              registeringRace: 'Breed',
+              calfName: 'Name',
+              calfBreed: 'Breed',
+              birthDate: 'DOB',
+              dob: 'DOB',
+              lastCalving: 'Last Calving',
+              notes: 'Notes',
+              motherCowNumber: 'Mother #',
+              motherCowName: 'Mother Name',
+              motherCowBreed: 'Mother Breed',
+              sireBullNumber: 'Sire #',
+              sireBullName: 'Sire Name',
+              sireBullBreed: 'Sire Breed',
+              gender: 'Gender'
+            };
+            const diff = [];
+            Object.keys(data).forEach(k => {
+              if (k === 'type' || k === 'id') return;
+              const newVal = (data[k] || '').trim();
+              const oldVal = (original[k] || '').trim();
+              if (newVal !== oldVal) diff.push({ key: k, label: displayMap[k] || k, from: oldVal || '—', to: newVal || '—' });
             });
-            if (!resp.ok) {
-              const txt = await resp.text();
-              // Try to parse JSON error shape
-              let msg = txt;
-              try { const j = JSON.parse(txt); msg = j.error || txt; } catch {}
-              // Field-level mapping for conflicts
-              handleFieldConflicts(type, msg);
-              throw new Error(msg || 'Add failed');
+            if (!diff.length) {
+              showCustomPopup('No changes to save.', 'info');
+              return;
             }
-          } else {
-            const id = data.id;
-            delete data.id; // leave type
-            const resp = await fetch('/edit-cattle', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id, type, updates: data })
-            });
-            if (!resp.ok) {
-              const txt = await resp.text();
-              handleFieldConflicts(type, txt);
-              throw new Error(txt || 'Update failed');
-            }
+            const rows = diff.map(d => `<tr><td>${escapeHtml(d.label)}</td><td>${escapeHtml(d.from)}</td><td style=\"width:28px;text-align:center;\">→</td><td>${escapeHtml(d.to)}</td></tr>`).join('');
+            openConfirmModal('Confirm Changes', `<p>Please review the changes:</p><table style=\"width:100%;border-collapse:collapse;font-size:0.9rem;\"><thead><tr><th style=\"text-align:left;border-bottom:1px solid #ccc;\">Field</th><th style=\"text-align:left;border-bottom:1px solid #ccc;\">Old</th><th style=\"border-bottom:1px solid #ccc;\"></th><th style=\"text-align:left;border-bottom:1px solid #ccc;\">New</th></tr></thead><tbody>${rows}</tbody></table>`, async () => {
+              await performSave(mode, type, data);
+              closeConfirmModal();
+            }, { label: 'Save Changes', variant: 'success' });
+            return; // wait for confirmation
           }
-          showCustomPopup('Saved successfully.', 'success');
-          closeModal();
-          setTimeout(() => location.reload(), 1200);
+          await performSave(mode, type, data);
         } catch (err) {
           console.error(err);
           // Also surface near the form fields
@@ -1074,6 +975,119 @@
           showCustomPopup(String(err.message || err), 'error');
         }
       });
+
+      function escapeHtml(str){
+        return String(str).replace(/[&<>\"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+      }
+
+      async function performSave(mode, type, data){
+        if (mode === 'add') {
+          try { validateParentsBeforeSave(); } catch(e){ setFormError(e.message); return; }
+          const resp = await fetch('/add-cattle', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            let msg = txt; try { const j = JSON.parse(txt); msg = j.error || txt; } catch {}
+            handleFieldConflicts(type, msg);
+            throw new Error(msg || 'Add failed');
+          }
+          showCustomPopup('Saved successfully.', 'success');
+          closeModal();
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          try { validateParentsBeforeSave(); } catch(e){ setFormError(e.message); return; }
+          const id = data.id; delete data.id;
+          const resp = await fetch('/edit-cattle', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, type, updates: data })
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            handleFieldConflicts(type, txt);
+            throw new Error(txt || 'Update failed');
+          }
+          // Post-edit concise diff summary in toast
+          if (window._currentEditOriginal){
+            const original = window._currentEditOriginal;
+            const changed = [];
+            Object.keys(data).forEach(k => {
+              if (k==='type') return;
+              const nv = (data[k]||'').trim();
+              const ov = (original[k]||'').trim();
+              if (nv !== ov) changed.push(k);
+            });
+            if (changed.length) showCustomPopup('Updated: ' + changed.join(', '), 'success');
+            else showCustomPopup('Saved successfully.', 'success');
+          } else {
+            showCustomPopup('Saved successfully.', 'success');
+          }
+          closeModal();
+          setTimeout(() => location.reload(), 1200);
+        }
+      }
+
+      // Parent autofill + type validation
+      async function autoFillParent(parentType, fieldName){
+        try {
+          const input = document.getElementById(fieldName);
+          if(!input) return;
+          const val = input.value.trim();
+          const meta = document.getElementById(fieldName + '_meta');
+          if(!val){
+            if(meta) meta.textContent='Enter number to auto-fill';
+            input.classList.remove('invalid');
+            return;
+          }
+          if(meta) meta.textContent='Looking up...';
+          input.classList.remove('invalid');
+          // Generic lookup to detect presence and type
+          const rAny = await fetch(`/lookup/number/${encodeURIComponent(val)}`);
+          if (rAny.status === 404) {
+            if(meta) meta.textContent='Not found';
+            input.classList.add('invalid');
+            markInvalid(input, 'Number not found');
+            return;
+          }
+          const any = await rAny.json();
+          if (any.type !== parentType) {
+            if(meta) meta.textContent = `Found ${any.type}, expected ${parentType}`;
+            input.classList.add('invalid');
+            markInvalid(input, `Wrong type: expected ${parentType}`);
+            return;
+          }
+          // Correct type, fill hidden fields
+          if(parentType==='cow'){
+            const nameEl = document.querySelector('input[name="motherCowName"]');
+            const breedEl = document.querySelector('input[name="motherCowBreed"]');
+            if(nameEl) nameEl.value = any.name || '';
+            if(breedEl) breedEl.value = any.breed || '';
+            if(meta) meta.textContent = `Dam: ${any.name||'—'} (${any.breed||'—'})`;
+          } else {
+            const nameEl = document.querySelector('input[name="sireBullName"]');
+            const breedEl = document.querySelector('input[name="sireBullBreed"]');
+            if(nameEl) nameEl.value = any.name || '';
+            if(breedEl) breedEl.value = any.breed || '';
+            if(meta) meta.textContent = `Sire: ${any.name||'—'} (${any.breed||'—'})`;
+          }
+        } catch(e){
+          const meta = document.getElementById(fieldName + '_meta');
+          if(meta) meta.textContent='Lookup error';
+        }
+      }
+
+      // Block submit if invalid parent fields
+      function validateParentsBeforeSave(){
+        const mother = document.getElementById('motherCowNumber');
+        const sire = document.getElementById('sireBullNumber');
+        if (mother && mother.value.trim() && mother.classList.contains('invalid')) {
+          throw new Error('Mother cow number is invalid');
+        }
+        if (sire && sire.value.trim() && sire.classList.contains('invalid')) {
+          throw new Error('Sire bull number is invalid');
+        }
+      }
 
       function setFormError(message) {
         if (!modalForm) return;
@@ -1150,7 +1164,7 @@
 
       // Confirm Modal helpers
       let _confirmCb = null;
-      function openConfirmModal(title, bodyHtml, onConfirm) {
+      function openConfirmModal(title, bodyHtml, onConfirm, opts) {
         const cm = document.getElementById('confirm-modal');
         document.getElementById('confirm-title').textContent = title || 'Confirm';
         document.getElementById('confirm-body').innerHTML = bodyHtml || '';
@@ -1160,6 +1174,14 @@
         // Remove previous listener by cloning
         const newYes = yes.cloneNode(true);
         yes.parentNode.replaceChild(newYes, yes);
+        // Apply dynamic label and variant style
+        const label = (opts && opts.label) || 'Confirm';
+        const variant = (opts && opts.variant) || 'primary';
+        newYes.textContent = label;
+        let bg = '#0d6efd';
+        if (variant === 'danger') bg = '#dc3545';
+        else if (variant === 'success') bg = '#198754';
+        newYes.style.backgroundColor = bg;
         newYes.addEventListener('click', () => {
           if (_confirmCb) _confirmCb();
         });
@@ -1236,7 +1258,57 @@
         }
       }
 
-      // Removed scheduling, advisory, sale flag logic (now deferred to profile pages).
-    </script>
+      // Handle deep links from Viewer (auto-open edit modal)
+      window.addEventListener('DOMContentLoaded', () => {
+        // Support hash-based deep link (#edit:type:id) and query param (?edit=type:id)
+        let type=null, id=null;
+        const h = (location.hash || '').slice(1);
+        const partsH = h.split(':');
+        if (partsH[0] === 'edit' && partsH.length >= 3) {
+          type = partsH[1];
+          id = partsH[2];
+        }
+        if (!type || !id) {
+          const qp = new URLSearchParams(location.search).get('edit');
+          if (qp) {
+            const partsQ = qp.split(':');
+            if (partsQ.length === 2){ type=partsQ[0]; id=partsQ[1]; }
+          }
+        }
+        if (type && id) {
+          openEditModal(type, id);
+          // Clean URL without removing other params
+          const url = new URL(location.href);
+          url.searchParams.delete('edit');
+          history.replaceState(null, '', url.pathname + url.search);
+        }
+      });
+
+      // Focus handling from profile pages (?focus=type:id&openInfo=true)
+      (function handleRegistryFocus(){
+        const params=new URLSearchParams(location.search);
+        const focus=params.get('focus');
+        if(!focus) return;
+        const openInfo=params.get('openInfo');
+        const parts=focus.split(':');
+        if(parts.length!==2) return;
+        const type=parts[0];
+        const id=parts[1];
+        const row=document.getElementById(type+'-row-'+id);
+        if(!row) return;
+        // Scroll into view and highlight
+        row.scrollIntoView({behavior:'smooth',block:'center'});
+        row.style.outline='3px solid #0d6efd';
+        row.style.backgroundColor='#eaf4ff';
+        setTimeout(()=>{ row.style.outline='none'; row.style.backgroundColor=''; }, 2600);
+        if(openInfo){
+          // open more info section
+          toggleMoreInfo(type,id);
+        }
+      })();
+
+  </script>
+  </main>
+  <%- include('partials/footer') %>
 </body>
 </html>

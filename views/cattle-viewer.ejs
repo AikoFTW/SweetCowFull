@@ -30,15 +30,179 @@
         </footer>
     </nav>
 
-    <main class="content">
-        <h1>Cattle Viewer</h1>
-        <!-- Content for Cattle Viewer will go here -->
-        <a href="/cattle-management" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px;">Back to Cattle Management</a>
-    </main>
+        <main class="content">
+                <h1>Cattle Viewer</h1>
+                <a href="/cattle-management" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 8px; display:inline-block;">Back to Cattle Management</a>
 
-    <%- include('partials/footer') %>
+                <section style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-cows" style="padding:6px 10px;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('cows-grid')">Cows</button>
+                    <button class="btn btn-bulls" style="padding:6px 10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('bulls-grid')">Bulls</button>
+                    <button class="btn btn-calves" style="padding:6px 10px;background:#ff9800;color:#fff;border:none;border-radius:6px;cursor:pointer;" onclick="scrollToSection('calves-grid')">Calves</button>
+                </section>
 
-    <script>
+                <!-- Cows -->
+                <h2 style="margin-top:20px;">Cows</h2>
+                        <div id="cows-grid" class="profile-grid">
+                    <% if (cows && cows.length) { %>
+                        <% cows.forEach(cow => { %>
+                                    <div class="profile-card" data-type="cow" data-id="<%= cow._id %>" data-last-calving="<%= cow.lastCalving ? new Date(cow.lastCalving).toISOString().slice(0,10) : '' %>" data-dob="<%= cow.dob ? new Date(cow.dob).toISOString().slice(0,10) : '' %>" onclick="location.href='/profile/cow/<%= cow._id %>'">
+                                                <div class="pfp" aria-hidden="true">
+                                                    <% if (cow.profileImageUrl) { %>
+                                                        <img src="<%= cow.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } else if (cow.cowName || cow.cowNumber) { %>
+                                                        <span><%= (cow.cowName || cow.cowNumber || 'Cow')[0].toUpperCase() %></span>
+                                                    <% } else { %>
+                                                        <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } %>
+                                                </div>
+                                <div class="info">
+                                    <div class="name"><%= cow.cowName || 'Unnamed Cow' %></div>
+                                    <div class="meta">#<%= cow.cowNumber || 'N/A' %> • <%= cow.race || 'Breed N/A' %></div>
+                                    <% if (cow.dob) { %><div class="sub">DOB: <%= new Date(cow.dob).toLocaleDateString() %></div><% } %>
+                                </div>
+                                                <div class="actions" style="display:none;"></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="empty">No cows yet.</div>
+                    <% } %>
+                </div>
+
+                <!-- Bulls -->
+                <h2 style="margin-top:20px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">Bulls</h2>
+                <div class="bull-tabs" style="margin-bottom:10px;">
+                    <button id="tab-view-bulls-herd" type="button" class="bull-tab herd active">Herd Bulls</button>
+                    <button id="tab-view-bulls-ai" type="button" class="bull-tab ai">Insemination Bulls</button>
+                </div>
+                <div id="bulls-grid-herd" class="profile-grid">
+                    <% if (bulls && bulls.filter(b=>!b.isInsemination).length) { %>
+                        <% bulls.filter(b=>!b.isInsemination).forEach(bull => { %>
+                            <div class="profile-card" data-type="bull" data-id="<%= bull._id %>" onclick="location.href='/profile/bull/<%= bull._id %>'">
+                                                <div class="pfp" aria-hidden="true">
+                                                    <% if (bull.profileImageUrl) { %>
+                                                        <img src="<%= bull.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } else if (bull.bullName || bull.bullNumber) { %>
+                                                        <span><%= (bull.bullName || bull.bullNumber || 'Bull')[0].toUpperCase() %></span>
+                                                    <% } else { %>
+                                                        <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } %>
+                                                </div>
+                                <div class="info">
+                                    <div class="name"><%= bull.bullName || 'Unnamed Bull' %></div>
+                                    <div class="meta">#<%= bull.bullNumber || 'N/A' %> • <%= bull.race || 'Breed N/A' %></div>
+                                    <% if (bull.dob) { %><div class="sub">DOB: <%= new Date(bull.dob).toLocaleDateString() %></div><% } %>
+                                </div>
+                                <div class="actions" style="display:none;"></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="empty">No bulls yet.</div>
+                    <% } %>
+                </div>
+
+                <div id="bulls-grid-ai" class="profile-grid" style="display:none;">
+                    <% if (bulls && bulls.filter(b=>b.isInsemination).length) { %>
+                        <% bulls.filter(b=>b.isInsemination).forEach(bull => { %>
+                            <div class="profile-card" data-type="bull" data-id="<%= bull._id %>" onclick="location.href='/profile/bull/<%= bull._id %>'">
+                                            <div class="pfp" aria-hidden="true">
+                                                <% if (bull.profileImageUrl) { %>
+                                                    <img src="<%= bull.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                <% } else if (bull.bullName || bull.bullNumber) { %>
+                                                    <span><%= (bull.bullName || bull.bullNumber || 'Bull')[0].toUpperCase() %></span>
+                                                <% } else { %>
+                                                    <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                <% } %>
+                                            </div>
+                                <div class="info">
+                                    <div class="name"><%= bull.bullName || 'Unnamed Bull' %></div>
+                                    <div class="meta">#<%= bull.bullNumber || 'N/A' %> • <%= bull.race || 'Breed N/A' %></div>
+                                </div>
+                                <div class="actions" style="display:none;"></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="empty">No insemination bulls.</div>
+                    <% } %>
+                </div>
+
+                <!-- Calves -->
+                <h2 style="margin-top:20px;">Calves</h2>
+                <div id="calves-grid" class="profile-grid">
+                    <% if (calves && calves.length) { %>
+                        <% calves.forEach(calf => { %>
+                            <div class="profile-card" data-type="calf" data-id="<%= calf._id %>" onclick="location.href='/profile/calf/<%= calf._id %>'">
+                                                <div class="pfp" aria-hidden="true">
+                                                    <% if (calf.profileImageUrl) { %>
+                                                        <img src="<%= calf.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } else if (calf.calfName) { %>
+                                                        <span><%= (calf.calfName || 'Calf')[0].toUpperCase() %></span>
+                                                    <% } else { %>
+                                                        <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+                                                    <% } %>
+                                                </div>
+                                <div class="info">
+                                    <div class="name"><%= calf.calfName || 'Unnamed Calf' %></div>
+                                    <div class="meta"><%= calf.calfBreed || 'Breed N/A' %> • <%= (calf.gender || '—').toUpperCase() %></div>
+                                    <% if (calf.birthDate) { %><div class="sub">DOB: <%= new Date(calf.birthDate).toLocaleDateString() %></div><% } %>
+                                </div>
+                                <div class="actions" style="display:none;"></div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="empty">No calves yet.</div>
+                    <% } %>
+                </div>
+        </main>
+
+        <style>
+            .profile-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px; margin-top:10px; }
+            .profile-card { background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:12px; display:flex; gap:12px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.03); }
+            .profile-card .pfp { width:56px; height:56px; border-radius:50%; background:#f1f3f5; display:flex; align-items:center; justify-content:center; font-weight:700; color:#495057; }
+            .profile-card .pfp span { font-size:22px; }
+            .profile-card .info { flex:1; min-width:0; }
+            .profile-card .name { font-weight:700; color:#212529; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .profile-card .meta { color:#6c757d; font-size:.9rem; }
+            .profile-card .sub { color:#6c757d; font-size:.85rem; margin-top:2px; }
+            .profile-card .actions { display:flex; gap:8px; }
+            .profile-card .act { background:#0d6efd; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+            .profile-card .act.secondary { background:#20c997; }
+            .empty { color:#6c757d; padding:10px 0; }
+            /* Modal basics */
+            .modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display:none; }
+            .modal .modal-content { background:#fff; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 560px; }
+            .modal .close { color: #666; float: right; font-size: 24px; font-weight: bold; cursor: pointer; }
+            .modal .close:hover { color: #000; }
+                </style>
+
+        <!-- Cow Log Modal -->
+        <div id="cow-log-modal" class="modal" style="display:none;">
+            <div class="modal-content" style="max-width:560px;">
+                <span class="close" onclick="closeCowLog()">&times;</span>
+                <h2>Cow Log</h2>
+                <div id="cow-log-body"></div>
+                <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px;">
+                    <button class="add-button" style="background:#6c757d;" onclick="closeCowLog()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <%- include('partials/footer') %>
+
+        <script id="settings-json" type="application/json"><%- JSON.stringify(settings || {}) %></script>
+
+        <script>
+                // Expose settings for simple client-side scheduling math
+                (function(){
+                    try {
+                        const el = document.getElementById('settings-json');
+                        window.__settings = el ? JSON.parse(el.textContent) : {};
+                    } catch { window.__settings = {}; }
+                })();
+                function scrollToSection(id){
+                    const el = document.getElementById(id);
+                    if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+                }
+
         const sidebar = document.getElementById('sidebar');
         const hamburger = document.querySelector('.hamburger');
         const closeSidebar = document.querySelectorAll('.close-sidebar');
@@ -58,6 +222,145 @@
                 sidebar.classList.remove('open');
             }
         });
+
+                // Reuse registry modal by navigating back with query, or implement a simple fetch for edit
+                        function openEditFromCard(type, id){
+                            // Provide both query and hash for robust deep-linking on mobile
+                            window.location.href = `/cattle-registry?edit=${type}:${id}#edit:${type}:${id}`;
+                        }
+
+                        // Generic profile modal
+                        function openCowProfile(id){ openProfile('cow', id); }
+                        function openBullProfile(id){ openProfile('bull', id); }
+                        function openCalfProfile(id){ openProfile('calf', id); }
+
+                        function openProfile(type, id){
+                            if (type === 'cow') {
+                                fetch(`/cow-profile?id=${id}`)
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        if (data.error) throw new Error(data.error);
+                                        const { cow, pregnancyStatus, conceptionDate, estimatedCalving, gestationDays, latestInsemination } = data;
+                                        const modal = ensureProfileModal();
+                                        const fmt = d => d ? new Date(d).toLocaleDateString() : 'N/A';
+                                        let pregBlock = '';
+                                        if (pregnancyStatus === 'pregnant') {
+                                            pregBlock = `<div class="row"><label>Pregnancy:</label><span>Pregnant</span></div>
+                                                                     <div class="row"><label>Conception:</label><span>${fmt(conceptionDate)}</span></div>
+                                                                     <div class="row"><label>Est. Calving:</label><span>${fmt(estimatedCalving)}</span></div>
+                                                                     <div class="row"><label>Gestation (days):</label><span>${gestationDays}</span></div>`;
+                                        } else if (pregnancyStatus === 'pending') {
+                                            pregBlock = `<div class="row"><label>Pregnancy:</label><span>Pending confirmation</span></div>
+                                                                     <div class="row"><label>Last Insemination:</label><span>${fmt(latestInsemination?.date)}</span></div>`;
+                                        } else {
+                                            pregBlock = `<div class="row"><label>Pregnancy:</label><span>Open</span></div>`;
+                                        }
+                                        modal.querySelector('.profile-body').innerHTML = `
+                                            <h2 style="margin-top:0;">Cow Profile</h2>
+                                            <div class="grid">
+                                                <div class="row"><label>Cow Number:</label><span>${cow.cowNumber || 'N/A'}</span></div>
+                                                <div class="row"><label>Cow Name:</label><span>${cow.cowName || 'N/A'}</span></div>
+                                                <div class="row"><label>Cow Race:</label><span>${cow.race || 'N/A'}</span></div>
+                                                <div class="row"><label>Date of Birth:</label><span>${fmt(cow.dob)}</span></div>
+                                                <div class="row"><label>Last Calving:</label><span>${fmt(cow.lastCalving)}</span></div>
+                                                ${pregBlock}
+                                            </div>
+                                        `;
+                                        openProfileModal();
+                                    })
+                                    .catch(err => console.error('Cow profile error', err));
+                            } else {
+                                // For bulls & calves: simpler static view
+                                const card = document.querySelector(`.profile-card[data-type="${type}"][data-id="${id}"]`);
+                                if (!card) return;
+                                const modal = ensureProfileModal();
+                                const name = card.querySelector('.name')?.textContent || 'N/A';
+                                const meta = card.querySelector('.meta')?.textContent || 'N/A';
+                                modal.querySelector('.profile-body').innerHTML = `
+                                    <h2 style="margin-top:0;">${type.charAt(0).toUpperCase() + type.slice(1)} Profile</h2>
+                                    <div class="grid">
+                                        <div class="row"><label>Name:</label><span>${name}</span></div>
+                                        <div class="row"><label>Meta:</label><span>${meta}</span></div>
+                                    </div>
+                                    <p style="margin-top:10px; font-size:.85rem; color:#6c757d;">Detailed editing available via registry page.</p>
+                                `;
+                                openProfileModal();
+                            }
+                        }
+
+                        function ensureProfileModal(){
+                            let m = document.getElementById('profile-modal');
+                            if (!m){
+                                m = document.createElement('div');
+                                m.id = 'profile-modal';
+                                m.className = 'modal';
+                                m.innerHTML = `<div class="modal-content" style="max-width:520px;">\n <span class="close" onclick="closeProfileModal()">&times;</span>\n <div class="profile-body"></div>\n <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">\n   <button class="add-button" style="background:#0d6efd;" onclick="gotoRegistry()">Go to Registry</button>\n   <button class="add-button" style="background:#6c757d;" onclick="closeProfileModal()">Close</button>\n </div>\n</div>`;
+                                document.body.appendChild(m);
+                            }
+                            return m;
+                        }
+                        function openProfileModal(){ document.getElementById('profile-modal').style.display='block'; }
+                        function closeProfileModal(){ const m=document.getElementById('profile-modal'); if (m) m.style.display='none'; }
+                        function gotoRegistry(){ window.location.href='/cattle-registry'; }
+
+                        // Cow Log modal with basic scheduling preview using settings
+                        function openCowLog(id){
+                            const card = document.querySelector(`.profile-card[data-type="cow"][data-id="${id}"]`);
+                            if (!card) return;
+                            const lastCalving = card.getAttribute('data-last-calving');
+                            const settings = window.__settings || {};
+                            const postpartumDays = Number(settings.postpartumInseminationStartDays || 0);
+                            const intervalMonths = Number(settings.inseminationIntervalMonths || 0);
+                            let html = '';
+                            html += `<p><strong>Cow Log</strong></p>`;
+                            if (!lastCalving){
+                                html += `<p>No last calving date recorded. Add it to see recommended windows.</p>`;
+                            } else {
+                                const lc = new Date(lastCalving);
+                                const start = addDays(lc, postpartumDays);
+                                const cycles = [];
+                                for (let i=0;i<3;i++){
+                                    cycles.push(addMonths(start, intervalMonths * i));
+                                }
+                                const fmt = (d)=> d.toLocaleDateString();
+                                html += `<div style="margin-top:6px;">
+                                    <div>Last Calving: <strong>${fmt(lc)}</strong></div>
+                                    <div>Postpartum start: <strong>${fmt(start)}</strong></div>
+                                    <div style="margin-top:6px;">Suggested insemination windows:</div>
+                                    <ul style="margin:6px 0 0 18px;">${cycles.map((d,i)=>`<li>Cycle ${i+1}: ${fmt(d)}</li>`).join('')}</ul>
+                                </div>`;
+                            }
+                            document.getElementById('cow-log-body').innerHTML = html;
+                            document.getElementById('cow-log-modal').style.display = 'block';
+                        }
+
+                        function closeCowLog(){
+                            document.getElementById('cow-log-modal').style.display = 'none';
+                            document.getElementById('cow-log-body').innerHTML = '';
+                        }
+
+                        function addDays(date, days){ const d = new Date(date); d.setDate(d.getDate()+days); return d; }
+                        function addMonths(date, months){ const d = new Date(date); d.setMonth(d.getMonth()+months); return d; }
+    </script>
+    <script>
+        // Viewer bulls tabs
+        (function(){
+            const herdBtn = document.getElementById('tab-view-bulls-herd');
+            const aiBtn = document.getElementById('tab-view-bulls-ai');
+            const herd = document.getElementById('bulls-grid-herd');
+            const ai = document.getElementById('bulls-grid-ai');
+            if (!herdBtn || !aiBtn || !herd || !ai) return;
+            function activate(which){
+                const herdActive = which==='herd';
+                herd.style.display = herdActive ? '' : 'none';
+                ai.style.display = herdActive ? 'none' : '';
+                herdBtn.classList.toggle('active', herdActive);
+                aiBtn.classList.toggle('active', !herdActive);
+            }
+            herdBtn.addEventListener('click', ()=> activate('herd'));
+            aiBtn.addEventListener('click', ()=> activate('ai'));
+            activate('herd');
+        })();
     </script>
 </body>
 </html>

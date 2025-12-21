@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calf Profile</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .profile-wrap{ display:grid; grid-template-columns: 1fr; gap:16px; }
+    .grid-three{ display:grid; grid-template-columns: 0.8fr 1.2fr 1fr; gap:16px; align-items:stretch; }
+    .grid-two{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:stretch; }
+    .card{background:#fff;border:1px solid #e9ecef;border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.03);}    
+    .pfp-card{display:flex;flex-direction:column;align-items:center;}
+    .pfp-card .actions{margin-top:auto;}
+    .avatar{width:180px;height:180px;border-radius:50%;background:#f1f3f5;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:800;color:#495057;overflow:hidden;}
+    .kv{display:grid;grid-template-columns:160px 1fr;gap:10px 14px;}
+    .kv label{font-weight:700;color:#212529;}
+    .actions{display:flex;gap:8px;margin-top:12px;}
+    
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  <main class="content">
+    <a href="/cattle-viewer" class="btn muted" style="text-decoration:none;display:inline-block;padding:6px 10px;">Back</a>
+    <h1 style="margin-top:10px;">Calf Profile</h1>
+    <div id="profile-nav" style="display:flex;gap:10px;margin:6px 0 14px;align-items:center;">
+      <button type="button" id="prevProfile" class="btn muted" style="padding:6px 10px;min-width:90px;">Prev</button>
+      <button type="button" id="nextProfile" class="btn muted" style="padding:6px 10px;min-width:90px;">Next</button>
+      <span style="font-size:.7rem;opacity:.7;">Calves only</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button type="button" id="goRegistry" class="btn muted" style="padding:6px 12px;">Registry Focus</button>
+        <button type="button" id="openCalfHistory" class="btn muted" style="padding:6px 12px;">History</button>
+      </div>
+    </div>
+    <div class="profile-wrap">
+      <!-- Top row: PFP | Important Details | Due Tasks -->
+      <div class="grid-three">
+        <div class="card pfp-card">
+          <div class="avatar" id="avatar">
+        <% if (calf.profileImageUrl) { %>
+          <img src="<%= calf.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;" />
+        <% } else if (calf.calfName) { %>
+          <%= calf.calfName[0].toUpperCase() %>
+        <% } else { %>
+          <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;" />
+        <% } %>
+          </div>
+          <div class="actions" style="display:flex;gap:8px;">
+            <input type="file" id="pfpInput" accept="image/*" style="display:none;" />
+            <button id="changePhotoBtn" class="btn muted" type="button">Change Photo</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title" style="display:flex;align-items:center;justify-content:space-between; font-weight:700; margin:0 0 10px;">
+            <span>Details</span>
+            <div class="actions" style="display:flex;gap:8px;">
+              <button id="editBtn" class="btn primary">Edit</button>
+              <button id="saveBtn" class="btn primary" style="display:none;">Save</button>
+              <button id="cancelBtn" class="btn muted" style="display:none;">Cancel</button>
+            </div>
+          </div>
+          <div id="view-kv" class="kv">
+        <label>Name:</label><span id="v-calfName"><%= calf.calfName || 'N/A' %></span>
+        <label>Breed:</label><span id="v-calfBreed"><%= calf.calfBreed || 'N/A' %></span>
+        <label>DOB:</label><span id="v-birthDate"><%= calf.birthDate ? new Date(calf.birthDate).toLocaleDateString() : 'N/A' %>
+          <% if (gradInfo && typeof gradInfo.daysLeft === 'number') { %>
+            (<%= gradInfo.daysLeft > 0 ? gradInfo.daysLeft + ' days until graduation' : 'Ready to graduate' %>)
+          <% } %>
+        </span>
+        <label>Gender:</label><span id="v-gender"><%= calf.gender || 'N/A' %></span>
+        <label>Notes:</label><span id="v-notes"><%= calf.notes || '—' %></span>
+          </div>
+          <form id="edit-form" class="kv" style="display:none;">
+        <label>Name:</label><input name="calfName" value="<%= calf.calfName || '' %>">
+        <label>Breed:</label><input name="calfBreed" value="<%= calf.calfBreed || '' %>">
+        <label>DOB:</label><input type="date" name="birthDate" value="<%= calf.birthDate ? new Date(calf.birthDate).toISOString().slice(0,10) : '' %>">
+        <label>Gender:</label>
+        <select name="gender">
+          <option value="male" <%= calf.gender==='male' ? 'selected' : '' %>>Male</option>
+          <option value="female" <%= calf.gender==='female' ? 'selected' : '' %>>Female</option>
+        </select>
+        <label>Notes:</label><input name="notes" value="<%- (calf.notes || '').replace(/"/g,'&quot;') %>">
+        <input type="hidden" name="type" value="calf">
+        <input type="hidden" name="id" value="<%= calf._id %>">
+          </form>
+          <div class="actions">
+            <% const overrideActive = (typeof override !== 'undefined' ? override : (typeof cowOverride !== 'undefined' ? cowOverride : false)); %>
+            <% if (!calf.graduated && ((gradInfo && gradInfo.ready) || overrideActive)) { %>
+              <button id="graduateBtn" class="btn primary" type="button" data-force="<%= (!gradInfo || !gradInfo.ready) && overrideActive ? '1' : '0' %>">
+                <%= (!gradInfo || !gradInfo.ready) && overrideActive ? 'Force Graduate' : 'Graduate' %>
+              </button>
+            <% } %>
+          </div>
+        </div>
+        <div class="card" id="calfDueTasksCard">
+          <div class="section-title" style="display:flex;align-items:center;justify-content:space-between; font-weight:700; margin:0 0 10px;">
+            <span>Due Tasks</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button id="refreshCalfDue" class="btn muted" type="button" style="padding:6px 10px;">Refresh</button>
+              <button id="openCalfConfirmLog" class="btn muted" type="button" style="padding:6px 10px;">Confirmation Log</button>
+            </div>
+          </div>
+          <div id="calfDueBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading tasks…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Second row: Upcoming Tasks | Alerts -->
+      <div class="grid-two">
+        <div class="card" id="calfUpcomingTasksCard">
+          <div class="section-title">Upcoming Tasks</div>
+          <div id="calfUpcomingTasksBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading upcoming…</div>
+          </div>
+        </div>
+        <div class="card" id="calfAlertsCard">
+          <div class="section-title">Alerts</div>
+          <div id="calfAlertsBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading alerts…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Override -->
+      <div class="card">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Admin Override</span>
+        <small style="font-size:.6rem;opacity:.6;">Restricted actions</small>
+      </div>
+      <% if (!override) { %>
+        <div style="display:flex;flex-direction:column;gap:10px;max-width:360px;">
+          <div style="font-size:.7rem;color:#6c757d;">Enter password to unlock forced actions like early graduation.</div>
+          <input type="password" id="overridePassword" placeholder="Password" autocomplete="new-password" style="padding:8px 10px;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;" />
+          <button id="overrideLoginBtn" class="btn primary" type="button">Unlock Override</button>
+        </div>
+      <% } else { %>
+        <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;">
+          <div style="font-size:.7rem;color:#198754;background:#d1e7dd;border:1px solid #0f5132;padding:6px 10px;border-radius:6px;">Override active — you may force graduate if needed.</div>
+          <div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">
+            <label style="font-size:.7rem;font-weight:600;">Override Session</label>
+            <button id="overrideLogoutBtn" class="btn muted" type="button" style="background:#dc3545;">Lock Override</button>
+          </div>
+        </div>
+      <% } %>
+      </div>
+
+      <!-- Lineage -->
+      <div class="card">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between; font-weight:700; margin:0 0 10px;">
+        <span>Lineage</span>
+        <div style="display:flex; gap:6px;">
+          <button id="arrangeLineage" type="button" class="btn muted" style="padding:6px 10px;">Re‑Arrange</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; font-size:.7rem; align-items:center;">
+        <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#d1e7dd;border:1px solid #0f5132"></span>Cow</div>
+        <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#e0cffc;border:1px solid #3d0a91"></span>Bull</div>
+        <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#fff3cd;border:1px solid #664d03"></span>Calf</div>
+        <div style="opacity:.6;">Wheel/pinch = zoom, drag empty space = pan</div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+          <button type="button" id="zoomOutBtn" class="btn muted" style="padding:4px 8px;">−</button>
+          <button type="button" id="zoomInBtn" class="btn muted" style="padding:4px 8px;">+</button>
+          <button type="button" id="fitBtn" class="btn primary" style="padding:4px 10px;">Fit</button>
+        </div>
+      </div>
+      <style>@media (max-width:640px){#lineage-vis .btn{padding:6px 8px;font-size:.65rem;}}</style>
+      <div id="lineage-vis" style="position:relative; min-height:300px; background:linear-gradient(180deg,#f8f9fa 0,#f1f3f5 100%); border:1px solid #e9ecef; border-radius:10px; overflow:hidden;">
+        <div style="padding:10px; font-size:.85rem; color:#6c757d;">Loading lineage...</div>
+      </div>
+      </div>
+    </div>
+  </main>
+  <div id="toast" style="position:fixed;bottom:16px;left:16px;display:none;"></div>
+  <script>
+    function toast(msg){const t=document.getElementById('toast');const i=document.createElement('div');i.textContent=msg;i.style.cssText='background:#111;color:#fff;padding:10px 14px;margin-top:8px;border-radius:10px;min-width:200px;';t.appendChild(i);t.style.display='block';setTimeout(()=>{i.remove();if(!t.children.length)t.style.display='none';},1600);}    
+  const eb=document.getElementById('editBtn'); const sb=document.getElementById('saveBtn'); const cb=document.getElementById('cancelBtn'); const kv=document.getElementById('view-kv'); const form=document.getElementById('edit-form');
+  const changePhotoBtn=document.getElementById('changePhotoBtn'); const pfpInput=document.getElementById('pfpInput'); const avatar=document.getElementById('avatar');
+    eb.addEventListener('click',()=>{kv.style.display='none';form.style.display='grid';eb.style.display='none';sb.style.display='inline-block';cb.style.display='inline-block';});
+    cb.addEventListener('click',()=>{kv.style.display='grid';form.style.display='none';eb.style.display='inline-block';sb.style.display='none';cb.style.display='none';});
+    sb.addEventListener('click', async ()=>{
+      const data=Object.fromEntries(new FormData(form).entries()); const id=data.id; delete data.id; const type=data.type;
+      try { const r=await fetch('/edit-cattle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,type,updates:data})}); if(!r.ok){ throw new Error(await r.text() || 'Save failed'); } const u=await r.json();
+        document.getElementById('v-calfName').textContent=u.calfName||'N/A';
+        document.getElementById('v-calfBreed').textContent=u.calfBreed||'N/A';
+        document.getElementById('v-birthDate').textContent=u.birthDate? new Date(u.birthDate).toLocaleDateString():'N/A';
+        document.getElementById('v-gender').textContent=u.gender||'N/A';
+        document.getElementById('v-notes').textContent=u.notes||'—';
+        cb.click(); toast('Saved');
+      } catch(e){ toast('Save failed: '+e.message); }
+    });
+    changePhotoBtn.addEventListener('click',()=> pfpInput.click());
+    pfpInput.addEventListener('change', async ()=>{
+      const file = pfpInput.files[0]; if(!file) return;
+      const fd = new FormData(); fd.append('image', file);
+      try{
+        const resp = await fetch('/profile/calf/<%= calf._id %>/upload-image', { method:'POST', body: fd });
+        if(!resp.ok){ throw new Error(await resp.text() || 'Upload failed'); }
+        const data = await resp.json();
+        avatar.innerHTML = `<img src="${data.url}?t=${Date.now()}" alt="Profile" style="width:100%;height:100%;object-fit:cover;" />`;
+        toast('Photo updated');
+      }catch(e){ toast('Upload failed: '+e.message); }
+    });
+    // Manual graduation
+    (function(){
+      const btn=document.getElementById('graduateBtn'); if(!btn) return;
+      btn.addEventListener('click', async ()=>{
+        btn.disabled=true;
+        try{
+          const forced = btn.getAttribute('data-force')==='1';
+          const r=await fetch('/calf/<%= calf._id %>/graduate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ forced }) });
+          if(!r.ok){ throw new Error(await r.text()||'Graduation failed'); }
+          const data=await r.json();
+          toast('Calf graduated');
+          // Update UI: mark DOB note as graduated
+          const vBirth=document.getElementById('v-birthDate'); if(vBirth){ vBirth.innerHTML = `<%= calf.birthDate ? new Date(calf.birthDate).toLocaleDateString() : 'N/A' %> (Graduated)`; }
+          btn.remove();
+        }catch(e){ toast('Graduation failed: '+e.message); btn.disabled=false; }
+      });
+    })();
+    // Lineage visualization (parents for calf)
+    (function initLineage(){
+      const container = document.getElementById('lineage-vis');
+      if (!container) return;
+      fetch('/lineage/calf/<%= calf._id %>')
+        .then(async r=>{ if(!r.ok){ const t=await r.text(); throw new Error(`HTTP ${r.status}: ${t}`); } return r.json(); })
+        .then(data => renderLineage(container, data))
+        .catch(err=>{ container.innerHTML = `<div style="padding:10px;color:#dc3545">Failed to load lineage.<br><small>${(err&&err.message)||''}</small></div>`; });
+    })();
+
+    function renderLineage(container, data){
+      container.innerHTML='';
+      const W=container.clientWidth||700; let H=500; container.style.minHeight=H+'px'; container.style.position='relative';
+      const svgNS='http://www.w3.org/2000/svg'; const stage=document.createElement('div'); stage.style.cssText='position:absolute;inset:0;transform-origin:0 0;'; container.appendChild(stage);
+      const svg=document.createElementNS(svgNS,'svg'); svg.setAttribute('width',W); svg.setAttribute('height',H); svg.style.cssText='position:absolute;inset:0;pointer-events:auto;'; stage.appendChild(svg);
+      const size={w:150,h:70}; const elemFor={}; const lines=[];
+      const defs=document.createElementNS(svgNS,'defs'); const mk=(id,color)=>{ const m=document.createElementNS(svgNS,'marker'); m.setAttribute('id',id); m.setAttribute('markerWidth','10'); m.setAttribute('markerHeight','6'); m.setAttribute('refX','10'); m.setAttribute('refY','3'); m.setAttribute('orient','auto'); m.setAttribute('markerUnits','strokeWidth'); const p=document.createElementNS(svgNS,'path'); p.setAttribute('d','M0,0 L10,3 L0,6 z'); p.setAttribute('fill',color); m.appendChild(p); return m; }; defs.appendChild(mk('arr-mother','#74c69d')); defs.appendChild(mk('arr-sire','#b197fc')); defs.appendChild(mk('arr-default','#adb5bd')); svg.appendChild(defs);
+      let scale=0.75, tx=0, ty=0; function applyTransform(){ stage.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+      function colorForNode(n){
+        if(n.type==='cow') return {bg:'#d1e7dd',fg:'#0f5132'};
+        if(n.type==='bull'){
+          if(n.isInsemination) return {bg:'#f3d9fa', fg:'#5f3dc4', border:'#6f42c1'};
+          return {bg:'#e0cffc',fg:'#3d0a91'};
+        }
+        return {bg:'#fff3cd',fg:'#664d03'};
+      }
+      function profilePath(n){ return n.type==='cow'?'/profile/cow/'+n._id: n.type==='bull'?'/profile/bull/'+n._id:'/profile/calf/'+n._id; }
+      const byId={}; (data.nodes||[]).forEach(n=> { byId[String(n._id)] = n; });
+      const selfNode=byId['<%= calf._id %>'];
+      const edgeSet=(data.edges||[]).map(e=> ({...e, from:String(e.from), to:String(e.to)}));
+      function parentEdgesOf(id){ return edgeSet.filter(e=> e.to===id && (e.relation==='mother'||e.relation==='sire')); }
+      function childrenEdgesOf(id){ return edgeSet.filter(e=> e.from===id && e.relation==='offspring'); }
+      const relationMap={}; if(selfNode) relationMap[selfNode._id]='Self';
+      // Build dynamic levels up to 10 generations
+      const maxGen=10; const levels={}; let ancDepth=0, desDepth=0;
+      if(selfNode){
+        // Ancestors
+        let cur=[selfNode._id]; const seenA=new Set(cur);
+        for(let d=1; d<=maxGen; d++){
+          const next=[]; const uniq=new Set();
+          cur.forEach(cid=>{
+            parentEdgesOf(cid).forEach(e=>{ const pid=e.from; if(seenA.has(pid)) return; seenA.add(pid); if(!uniq.has(pid)){ uniq.add(pid); next.push(pid); relationMap[pid]= d===1?(e.relation==='mother'?'Mother':'Sire'):'Ancestor'; } });
+          });
+          if(!next.length) break; ancDepth=d; levels[-d]=next.map(id=> byId[id]).filter(Boolean); cur=next;
+        }
+        // Descendants
+        cur=[selfNode._id]; const seenD=new Set(cur);
+        for(let d=1; d<=maxGen; d++){
+          const next=[]; const uniq=new Set();
+          cur.forEach(cid=>{
+            childrenEdgesOf(cid).forEach(e=>{ const kid=e.to; if(seenD.has(kid)) return; seenD.add(kid); if(!uniq.has(kid)){ uniq.add(kid); next.push(kid); relationMap[kid]= d===1?'Child': d===2?'Grandchild': d===3?'Great-Grandchild':'Descendant'; } });
+          });
+          if(!next.length) break; desDepth=d; levels[d]=next.map(id=> byId[id]).filter(Boolean); cur=next;
+        }
+      }
+      // Siblings at level 0
+      const siblingIds=new Set();
+      if(selfNode){
+        parentEdgesOf(selfNode._id).forEach(pe=>{ const p=pe.from; edgeSet.forEach(e=>{ if((e.relation==='mother'||e.relation==='sire') && e.from===p){ const sid=e.to; if(sid!==selfNode._id) siblingIds.add(sid); } }); });
+      }
+      const siblings=[...siblingIds].map(id=> byId[id]).filter(Boolean);
+      // Partners for immediate children at level 1
+      if(selfNode && (levels[1]||[]).length){
+        const childIds=new Set((levels[1]||[]).map(n=> String(n._id)));
+        const partnerIds=new Set();
+        childIds.forEach(cid=>{
+          const parents=parentEdgesOf(cid);
+          const partner=parents.find(pe=> String(pe.from)!==String(selfNode._id));
+          if(partner) partnerIds.add(String(partner.from));
+        });
+        const partners=[...partnerIds].map(id=> byId[id]).filter(Boolean);
+        partners.forEach(p=>{ if(!relationMap[p._id]) relationMap[p._id]='Partner'; });
+        levels[1] = [...(levels[1]||[]), ...partners.filter(p=> !(levels[1]||[]).some(n=> String(n._id)===String(p._id)))];
+      }
+      // Partners for deeper descendants (levels >=2)
+      if(desDepth>1){
+        for(let d=2; d<=desDepth; d++){
+          const prevIds=new Set((levels[d-1]||[]).map(n=> String(n._id)));
+          const curNodes=(levels[d]||[]);
+          const partnerIds=new Set();
+          curNodes.forEach(node=>{
+            const cid=String(node._id);
+            const parents=parentEdgesOf(cid);
+            if(!parents||!parents.length) return;
+            const linkParent=parents.find(pe=> prevIds.has(String(pe.from)));
+            if(linkParent){
+              const other=parents.find(pe=> String(pe.from)!==String(linkParent.from));
+              if(other) partnerIds.add(String(other.from));
+            } else if(parents.length===2){
+              partnerIds.add(String(parents[0].from));
+              partnerIds.add(String(parents[1].from));
+            }
+          });
+          const partners=[...partnerIds].map(id=> byId[id]).filter(Boolean);
+          partners.forEach(p=>{ if(!relationMap[p._id]) relationMap[p._id]='Partner'; });
+          levels[d] = [...curNodes, ...partners.filter(p=> !curNodes.some(n=> String(n._id)===String(p._id)))];
+        }
+      }
+      function createNode(n,x,y){ const el=document.createElement('div'); const c=colorForNode(n); el.style.cssText=`position:absolute;left:${x}px;top:${y}px;width:${size.w}px;height:${size.h}px;border-radius:14px;background:${c.bg};color:${c.fg};display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font-weight:700;cursor:grab;user-select:none;border:1px solid ${c.border||'rgba(0,0,0,.06)'};box-shadow:0 3px 8px rgba(0,0,0,.04);padding:16px 12px 10px;gap:2px;transition:box-shadow .12s, transform .12s;`;
+        const name=document.createElement('div'); name.textContent=n.label; name.style.cssText='font-weight:700;font-size:.85rem;'; el.appendChild(name); const meta=document.createElement('div'); meta.textContent=n.number?(`#${n.number}`):n.type; meta.style.cssText='font-weight:600;font-size:.7rem;opacity:.7;'; el.appendChild(meta);
+        if(selfNode && n._id===selfNode._id){ el.style.borderColor='#0d6efd'; el.style.boxShadow='0 6px 16px rgba(13,110,253,.15)'; }
+        if(n.type==='bull' && n.isInsemination){ const ai=document.createElement('div'); ai.textContent='AI'; ai.style.cssText='position:absolute;right:12px;top:-10px;background:#6f42c1;color:#fff;padding:2px 6px;border-radius:999px;font-size:.55rem;letter-spacing:.5px;opacity:.95;box-shadow:0 2px 4px rgba(0,0,0,.25);pointer-events:none;'; el.appendChild(ai); }
+        const rel=relationMap[n._id]; if(rel){ const b=document.createElement('div'); b.textContent=rel; b.style.cssText='position:absolute;left:12px;top:-10px;background:#212529;color:#fff;padding:2px 8px;border-radius:999px;font-size:.55rem;letter-spacing:.5px;opacity:.9;box-shadow:0 2px 4px rgba(0,0,0,.25);pointer-events:none;'; el.appendChild(b);}        
+        const tip=document.createElement('div'); tip.style.cssText='position:absolute;pointer-events:none;background:#212529;color:#fff;padding:6px 8px;border-radius:6px;font-size:.65rem;line-height:1.2;opacity:0;transform:translate(-50%,-8px);transition:opacity .15s;z-index:1000;'; tip.innerHTML=`<strong>${n.label}</strong><br>${n.type}${n.number?('<br>#'+n.number):''}${n.race?('<br>'+n.race):''}${n.dob?('<br>DOB: '+new Date(n.dob).toLocaleDateString()):''}`; stage.appendChild(tip); el.addEventListener('mouseenter',()=>{ const r=el.getBoundingClientRect(); const cR=container.getBoundingClientRect(); const lx=((r.left-cR.left - tx)/scale + (r.width/2)/scale); const ly=((r.top-cR.top - ty)/scale - 4/scale); tip.style.left=lx+'px'; tip.style.top=ly+'px'; tip.style.opacity='1'; el.style.boxShadow='0 8px 18px rgba(0,0,0,.12)'; el.style.transform='translateY(-2px)'; }); el.addEventListener('mouseleave',()=>{ tip.style.opacity='0'; el.style.boxShadow='0 3px 8px rgba(0,0,0,.04)'; el.style.transform='none'; }); stage.appendChild(el); elemFor[String(n._id)]=el; enableDrag(el); }
+      function centerX(x){ return x - size.w/2; } function centerY(y){ return y - size.h/2; }
+      function placeRow(nodes,y){ if(!nodes.length) return; const span=nodes.length+1; nodes.forEach((n,i)=>{ const x=(W/span)*(i+1); createNode(n, centerX(x), centerY(y)); }); }
+      // Dynamic layout across computed levels
+      (function layoutDynamic(){ const gapY=90; const startY=20; const levelsCount=(ancDepth+desDepth+1); H=Math.max(300, startY + (levelsCount-1)*gapY + 100); svg.setAttribute('height', H); container.style.minHeight=H+'px'; levels[0]=[selfNode, ...siblings.filter(n=> n && n._id!==selfNode._id)]; for(let lvl=-ancDepth; lvl<=desDepth; lvl++){ const row=(levels[lvl]||[]).filter(Boolean); const y=startY + (lvl + ancDepth)*gapY; placeRow(row,y); } })();
+      (data.edges||[]).forEach(e=>{ const path=document.createElementNS(svgNS,'path'); path.setAttribute('fill','none'); path.setAttribute('stroke','#adb5bd'); path.setAttribute('stroke-width','2.5'); path.setAttribute('stroke-linecap','round'); path.style.cursor='pointer'; path.style.pointerEvents='stroke'; svg.appendChild(path); lines.push({e:{...e, from:String(e.from), to:String(e.to)}, path}); });
+      function anchorTop(el){ const r=el.getBoundingClientRect(); const cr=container.getBoundingClientRect(); return {x:(r.left-cr.left - tx)/scale + (r.width/2)/scale, y:(r.top-cr.top - ty)/scale}; }
+      function anchorBottom(el){ const r=el.getBoundingClientRect(); const cr=container.getBoundingClientRect(); return {x:(r.left-cr.left - tx)/scale + (r.width/2)/scale, y:(r.top-cr.top - ty)/scale + (r.height)/scale}; }
+      function colorForRelation(rel){ if(rel==='mother') return '#74c69d'; if(rel==='sire') return '#b197fc'; return '#adb5bd'; }
+      function markerForRelation(rel){ if(rel==='mother') return 'url(#arr-mother)'; if(rel==='sire') return 'url(#arr-sire)'; return 'url(#arr-default)'; }
+      function updateLines(){ lines.forEach(obj=>{ const from=elemFor[String(obj.e.from)]; const to=elemFor[String(obj.e.to)]; if(!from||!to) return; const p1=anchorBottom(from); const p2=anchorTop(to); const dy=Math.max(16, Math.abs(p2.y-p1.y)*0.28); const d=`M ${p1.x} ${p1.y} C ${p1.x} ${p1.y+dy}, ${p2.x} ${p2.y-dy}, ${p2.x} ${p2.y}`; obj.path.setAttribute('d',d); const col=colorForRelation(obj.e.relation); obj.path.setAttribute('stroke',col); obj.path.setAttribute('stroke-width','2'); obj.path.setAttribute('marker-end', markerForRelation(obj.e.relation)); }); attachEdgeClicks(); }
+      let activePop=null; function clearPop(){ if(activePop&&activePop.parentNode) activePop.parentNode.removeChild(activePop); activePop=null; }
+      function attachEdgeClicks(){
+        lines.forEach(obj=>{
+          if(obj.bound) return;
+          obj.bound=true;
+          obj.path.addEventListener('click',ev=>{
+            clearPop();
+            const L=obj.path.getTotalLength();
+            const mid=obj.path.getPointAtLength(L/2);
+            const wrap=document.createElement('div');
+            wrap.style.cssText=`position:absolute;left:${mid.x-70}px;top:${mid.y-10}px;background:#fff;border:1px solid #e9ecef;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.12);padding:8px;display:flex;gap:6px;align-items:center;z-index:1001;`;
+            const rlab=document.createElement('span');
+            rlab.textContent=(obj.e.relation==='offspring'?'Offspring':obj.e.relation.charAt(0).toUpperCase()+obj.e.relation.slice(1));
+            rlab.style.cssText='font-size:.7rem;background:#f1f3f5;border:1px solid #dee2e6;border-radius:999px;padding:2px 6px;color:#495057;';
+            wrap.appendChild(rlab);
+            const bp=document.createElement('button'); bp.textContent='Open Parent'; bp.className='btn muted'; bp.type='button';
+            bp.onclick=()=>{ const n=byId[String(obj.e.from)]; if(n) window.location.href=profilePath(n); };
+            const bc=document.createElement('button'); bc.textContent='Open Child'; bc.className='btn primary'; bc.type='button';
+            bc.onclick=()=>{ const n=byId[String(obj.e.to)]; if(n) window.location.href=profilePath(n); };
+            wrap.appendChild(bp); wrap.appendChild(bc); stage.appendChild(wrap); activePop=wrap; ev.stopPropagation();
+          });
+        });
+      }
+      window.addEventListener('click',()=> clearPop());
+      function enableDrag(el){ let dragging=false,ox=0,oy=0; el.addEventListener('pointerdown',ev=>{ dragging=true; el.setPointerCapture(ev.pointerId); el.style.cursor='grabbing'; ox=ev.offsetX; oy=ev.offsetY; }); el.addEventListener('pointerup',ev=>{ dragging=false; el.releasePointerCapture(ev.pointerId); el.style.cursor='grab'; }); el.addEventListener('pointermove',ev=>{ if(!dragging) return; const rect=container.getBoundingClientRect(); const x=(ev.clientX-rect.left - tx)/scale - (ox/scale); const y=(ev.clientY-rect.top - ty)/scale - (oy/scale); el.style.left=x+'px'; el.style.top=y+'px'; updateLines(); }); }
+      updateLines(); window.addEventListener('resize',()=> setTimeout(()=>{ applyTransform(); updateLines(); },120));
+      container.addEventListener('wheel',ev=>{ ev.preventDefault(); const rect=container.getBoundingClientRect(); const mx=ev.clientX-rect.left; const my=ev.clientY-rect.top; const old=scale; const factor=ev.deltaY>0?0.9:1.12; scale=Math.max(0.15,Math.min(2.2,scale*factor)); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); });
+      let panning=false,startX=0,startY=0; container.addEventListener('pointerdown',ev=>{ if(ev.target===container){ panning=true; startX=ev.clientX - tx; startY=ev.clientY - ty; } }); container.addEventListener('pointerup',()=> panning=false); container.addEventListener('pointerleave',()=> panning=false); container.addEventListener('pointermove',ev=>{ if(!panning) return; tx=ev.clientX - startX; ty=ev.clientY - startY; applyTransform(); updateLines(); });
+      document.getElementById('zoomInBtn').onclick=()=>{ const rect=container.getBoundingClientRect(); const mx=rect.width/2; const my=rect.height/2; const old=scale; scale=Math.min(2.2,scale*1.15); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); };
+      document.getElementById('zoomOutBtn').onclick=()=>{ const rect=container.getBoundingClientRect(); const mx=rect.width/2; const my=rect.height/2; const old=scale; scale=Math.max(0.15,scale*0.85); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); };
+      function fitToView(extra=0.92){ const els=Object.values(elemFor); if(!els.length) return; let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9; els.forEach(el=>{ const x=parseFloat(el.style.left)||0; const y=parseFloat(el.style.top)||0; minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x+size.w); maxY=Math.max(maxY,y+size.h); }); const pad=(window.innerWidth<640)?30:50; const boxW=maxX-minX+pad*2; const boxH=maxY-minY+pad*2; const s=Math.min(container.clientWidth/boxW, H/boxH)*extra; scale=Math.max(0.15,Math.min(2.2,s)); tx=-minX*scale + (container.clientWidth - (maxX-minX)*scale)/2; ty=-minY*scale + (H - (maxY-minY)*scale)/2; applyTransform(); updateLines(); }
+      document.getElementById('fitBtn').onclick=()=> fitToView(); fitToView();
+      const arrangeBtn=document.getElementById('arrangeLineage'); if(arrangeBtn){ arrangeBtn.onclick=()=> renderLineage(container,data); }
+    }
+    // Profile navigation
+    (function initProfileNav(){
+      const prevBtn=document.getElementById('prevProfile');
+      const nextBtn=document.getElementById('nextProfile');
+      const registryBtn=document.getElementById('goRegistry');
+      registryBtn.onclick=()=>{ window.location.href=`/cattle-registry?focus=calf:<%= calf._id %>&openInfo=true`; };
+      fetch('/profile/nav/calf/<%= calf._id %>')
+        .then(r=>r.json())
+        .then(nav=>{
+          if(nav.previous){
+            prevBtn.disabled=false;
+            prevBtn.onclick=()=>{ window.location.href=`/profile/${nav.previous.type}/${nav.previous.id}`; };
+            prevBtn.textContent='◀ '+nav.previous.label.slice(0,14);
+          } else {
+            prevBtn.disabled=true;
+          }
+          if(nav.next){
+            nextBtn.disabled=false;
+            nextBtn.onclick=()=>{ window.location.href=`/profile/${nav.next.type}/${nav.next.id}`; };
+            nextBtn.textContent=nav.next.label.slice(0,14)+' ▶';
+          } else {
+            nextBtn.disabled=true;
+          }
+        })
+        .catch(()=>{
+          prevBtn.disabled=true;
+          nextBtn.disabled=true;
+        });
+      // Calf history modal
+      (function(){
+          const btn=document.getElementById('openCalfHistory'); if(!btn) return; let modal=null;
+          function build(){ if(modal) return modal; modal=document.createElement('div'); modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;';
+            const box=document.createElement('div'); box.style.cssText='background:#fff;max-width:800px;width:100%;border-radius:12px;padding:18px;box-shadow:0 8px 28px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:12px;';
+            box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 style="margin:0;font-size:1rem;">History</h3><button class="btn muted" id="closeCalfHist">Close</button></div>'+
+              '<div id="calfHistList" style="display:flex;flex-direction:column;gap:8px;"></div>';
+            modal.appendChild(box); document.body.appendChild(modal);
+            box.querySelector('#closeCalfHist').onclick=()=>{ modal.remove(); modal=null; };
+            modal.addEventListener('click',(e)=>{ if(e.target===modal){ modal.remove(); modal=null; } });
+            return modal;
+          }
+          function fmt(d){ try{ return new Date(d).toLocaleDateString(); }catch(_){ return 'N/A'; } }
+          function cap(s){ return (s||'').charAt(0).toUpperCase()+(s||'').slice(1); }
+          btn.addEventListener('click', async ()=>{
+            build(); const list=document.getElementById('calfHistList'); list.innerHTML='<div style="opacity:.6;font-size:.8rem;">Loading...</div>';
+            try{
+              const r = await fetch('/calf/<%= calf._id %>/history'); const data = await r.json(); const items = Array.isArray(data.items)? data.items:[];
+              if(!items.length){ list.innerHTML='<div style="opacity:.6;font-size:.8rem;">No history recorded</div>'; return; }
+              list.innerHTML='';
+              items.sort((a,b)=> new Date(b.at) - new Date(a.at)).forEach(it=>{
+                const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;';
+                const badge=document.createElement('span'); badge.className='badge '+(it.type==='graduate'?'success': it.type==='loss'?'warning':'secondary'); badge.style.padding='2px 8px'; badge.style.fontSize='.7rem'; badge.textContent=cap(it.type);
+                let text=''; let link=null;
+                if(it.type==='graduate'){ text = `${fmt(it.at)} — Graduated to ${cap(it.details?.adultType||'')}`; if(it.adult){ link = `/profile/${it.adult.type}/${it.adult.id}`; } }
+                else if(it.type==='loss'){ text = `${fmt(it.at)} — ${cap(it.details?.status||'')} (${it.details?.name||'Unnamed'})`; }
+                const txt=document.createElement('div'); txt.style.cssText='font-size:.8rem;'; txt.textContent=text; row.appendChild(badge); row.appendChild(txt);
+                if(link){ row.style.cursor='pointer'; row.onclick=()=> window.location.href=link; const a=document.createElement('a'); a.href=link; a.className='btn muted'; a.style.padding='4px 8px'; a.textContent='View'; row.appendChild(a); }
+                list.appendChild(row);
+              });
+            }catch(_){ list.innerHTML='<div style="opacity:.6;font-size:.8rem;">Failed to load history</div>'; }
+          });
+        })();
+    })();
+  </script>
+  <script>
+    // Calf Upcoming Tasks and Alerts (read-only summaries)
+    (function initCalfUpcomingCards(){
+      const entityType='calf'; const entityId='<%= calf._id %>';
+      const upcomingBody=document.getElementById('calfUpcomingTasksBody');
+      const alertsBody=document.getElementById('calfAlertsBody');
+      const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545' };
+      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      async function getAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
+      function renderList(target, items, mode){
+        if(!target) return;
+        if(!items.length){ target.innerHTML = `<div style="opacity:.6;font-size:.85rem;">No ${mode==='upcoming'?'upcoming tasks':'alerts'}.</div>`; return; }
+        target.innerHTML='';
+        items.forEach(it=>{
+          const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;flex-wrap:wrap;';
+          const left=document.createElement('div'); left.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+          const dot=document.createElement('span'); dot.style.cssText=`width:8px;height:8px;border-radius:999px;background:${colors[it.type]||'#adb5bd'};display:inline-block;`;
+          const text=document.createElement('div'); text.style.cssText='display:flex;flex-direction:column;gap:2px;';
+          const title=document.createElement('div'); title.style.cssText='font-weight:700;font-size:.85rem;color:#212529;'; title.textContent=it.label;
+          const sub=document.createElement('div'); sub.style.cssText='font-size:.72rem;color:#6c757d;';
+          const eventStr = it.when? new Date(it.when).toLocaleDateString():'';
+          const alertStr = it.alertDate? new Date(it.alertDate).toLocaleDateString():'';
+          sub.textContent = mode==='upcoming' ? `Event: ${eventStr}` : `Alert: ${alertStr}${eventStr? ' • Event: '+eventStr:''}`;
+          text.appendChild(title); text.appendChild(sub);
+          left.appendChild(dot); left.appendChild(text);
+          row.appendChild(left);
+          target.appendChild(row);
+        });
+      }
+      function filterEntity(items){ return items.filter(it=> it.entity && it.entity.type===entityType && String(it.entity.id)===String(entityId)); }
+      function dedupBy(items, keyFn){ const m=new Map(); items.forEach(it=>{ const k=keyFn(it); if(!m.has(k)) m.set(k,it); }); return Array.from(m.values()); }
+      async function load(){
+        try{
+          const A = await getAlerts(ymd(new Date()));
+          const monthDueDays = (A && A.monthDue && Array.isArray(A.monthDue.days)) ? A.monthDue.days : [];
+          const monthAlertDays = (A && A.month && Array.isArray(A.month.days)) ? A.month.days : [];
+          const monthDue = monthDueDays.flatMap(d=> (d.items||[]));
+          const monthAlerts = monthAlertDays.flatMap(d=> (d.items||[]));
+          let upcoming = dedupBy(filterEntity(monthDue), x=> `${x.type}:${new Date(x.when).toISOString().slice(0,10)}`);
+          upcoming.sort((a,b)=> new Date(a.when)-new Date(b.when));
+          let alerts = dedupBy(filterEntity(monthAlerts), x=> `${x.type}:${x.alertDate? new Date(x.alertDate).toISOString().slice(0,10):''}`);
+          alerts.sort((a,b)=> new Date(a.alertDate||0)-new Date(b.alertDate||0));
+          renderList(upcomingBody, upcoming, 'upcoming');
+          renderList(alertsBody, alerts, 'alerts');
+        }catch(_){
+          if(upcomingBody) upcomingBody.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load upcoming</div>';
+          if(alertsBody) alertsBody.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load alerts</div>';
+        }
+      }
+      load();
+    })();
+  </script>
+  <script>
+    // Calf Due Tasks + Confirmation Log
+    (function initCalfDueTasks(){
+      const entityType='calf'; const entityId='<%= calf._id %>';
+      const body=document.getElementById('calfDueBody');
+      const refreshBtn=document.getElementById('refreshCalfDue');
+      const openLogBtn=document.getElementById('openCalfConfirmLog');
+      const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545' };
+      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      async function fetchAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
+      function filterTasks(A){
+        const makeKey = (x)=> `${entityType}:${entityId}:${x.type}:${new Date(x.when).toISOString().slice(0,10)}`;
+        const map = new Map();
+        const week=(A.week||[]).flatMap(d=> (d.items||[]).map(x=> ({...x, source:'week'})));
+        const pd=(A.pastDue||[]).map(x=> ({...x, source:'pastDue'}));
+        const all=[...pd, ...week].filter(it=> it.entity && it.entity.type===entityType && String(it.entity.id)===String(entityId));
+        for(const it of all){
+          const key = makeKey(it);
+          const existing = map.get(key);
+          if(existing){
+            const hadAlert = !!(existing.hadAlert || it.source==='pastDue');
+            const alertDate = existing.alertDate || it.alertDate || null;
+            map.set(key, { ...existing, ...it, hadAlert, alertDate });
+          } else {
+            map.set(key, { ...it, hadAlert: it.source==='pastDue' });
+          }
+        }
+        return Array.from(map.values());
+      }
+      function render(list){
+        if(!body) return;
+        if(!list.length){ body.innerHTML='<div style="opacity:.6;font-size:.85rem;">No due or upcoming tasks.</div>'; return; }
+        body.innerHTML='';
+        list.sort((a,b)=> new Date(a.when)-new Date(b.when));
+        list.forEach(it=>{
+          const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;flex-wrap:wrap;';
+          const left=document.createElement('div'); left.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+          const dot=document.createElement('span'); dot.style.cssText=`width:8px;height:8px;border-radius:999px;background:${colors[it.type]||'#adb5bd'};display:inline-block;`;
+          const text=document.createElement('div'); text.style.cssText='display:flex;flex-direction:column;gap:2px;';
+          const title=document.createElement('div'); title.style.cssText='font-weight:700;font-size:.85rem;color:#212529;'; title.textContent=it.label;
+          const sub=document.createElement('div'); sub.style.cssText='font-size:.72rem;color:#6c757d;';
+          const whenStr=new Date(it.when).toLocaleDateString();
+          const alertStr=it.alertDate? new Date(it.alertDate).toLocaleDateString() : '';
+          sub.textContent = (it.hadAlert && alertStr ? `Alert was ${alertStr} • Event: ${whenStr}` : `Event: ${whenStr}`);
+          text.appendChild(title); text.appendChild(sub);
+          left.appendChild(dot); left.appendChild(text);
+          const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:8px;';
+          const btn=document.createElement('button'); btn.className='btn primary'; btn.type='button'; btn.style.padding='6px 10px'; btn.textContent='Confirm Done';
+          btn.onclick= async ()=>{
+            try{
+              if(!window.confirm('Mark this task as done?')) return;
+              const payload={ entityType, entityId, type: it.type, when: it.when, alertOn: it.alertDate };
+              const r=await fetch('/confirmation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+              if(!r.ok){ throw new Error(await r.text()||'confirm failed'); }
+              toast('Task confirmed');
+              row.remove(); if(!body.children.length){ render([]); }
+            }catch(e){ toast('Confirm failed'); }
+          };
+          actions.appendChild(btn);
+          row.appendChild(left); row.appendChild(actions);
+          body.appendChild(row);
+        });
+      }
+      async function load(){ try{ const A=await fetchAlerts(ymd(new Date())); const tasks=filterTasks(A); render(tasks); }catch(_){ if(body) body.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load tasks</div>'; } }
+      refreshBtn && (refreshBtn.onclick=load);
+      openLogBtn && (openLogBtn.onclick= async ()=>{
+        try{
+          const r=await fetch(`/confirmations?entityType=${entityType}&entityId=${entityId}`); const list=await r.json();
+          const wrap=document.createElement('div'); wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1400;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;';
+          const box=document.createElement('div'); box.style.cssText='background:#fff;max-width:900px;width:100%;border-radius:12px;padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:12px;'; wrap.appendChild(box);
+          box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 style="margin:0;font-size:1rem;">Confirmation Log</h3><button class="btn muted" id="closeLog">Close</button></div>'+
+            '<div style="overflow:auto;max-height:60vh;border:1px solid #e9ecef;border-radius:8px;">'+
+            '<table style="width:100%;border-collapse:collapse;font-size:.72rem;"><thead><tr style="background:#f8f9fa;"><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">When</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Type</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Event Date</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Note</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Status</th><th></th></tr></thead><tbody>'+ 
+            (Array.isArray(list)? list: []).map(c=>{
+              const dt=new Date(c.createdAt||c.updatedAt||Date.now()).toLocaleString();
+              const when=new Date(c.when).toLocaleDateString();
+              const undone=!!c.undone; const btn = undone? '' : '<button class="btn muted undoBtn" data-id="'+c._id+'" style="padding:4px 8px;background:#dc3545;">Undo</button>';
+              const status = undone? '<span style="font-size:.7rem;color:#dc3545;background:#f8d7da;border:1px solid #f5c2c7;border-radius:999px;padding:2px 6px;">Undone</span>' : '<span style="font-size:.7rem;color:#198754;background:#d1e7dd;border:1px solid #badbcc;border-radius:999px;padding:2px 6px;">Confirmed</span>';
+              return '<tr><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+dt+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+c.type+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+when+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.note||'')+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+status+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+btn+'</td></tr>';
+            }).join('') + '</tbody></table></div>';
+          document.body.appendChild(wrap);
+          box.querySelector('#closeLog').onclick=()=> wrap.remove();
+          wrap.onclick=(e)=>{ if(e.target===wrap) wrap.remove(); };
+          box.querySelectorAll('.undoBtn').forEach(btn=>{
+            btn.addEventListener('click', async ()=>{
+              try{
+                const id=btn.getAttribute('data-id'); if(!window.confirm('Undo this confirmation?')) return;
+                const rr=await fetch('/confirmation/'+id+'/undo',{method:'POST'});
+                if(!rr.ok){ toast('Undo failed'); return; }
+                toast('Undone');
+                const tr = btn.closest('tr');
+                if(tr){
+                  const statusCell = tr.children[4]; if(statusCell){ statusCell.innerHTML = '<span style="font-size:.7rem;color:#dc3545;background:#f8d7da;border:1px solid #f5c2c7;border-radius:999px;padding:2px 6px;">Undone</span>'; }
+                  btn.remove();
+                }
+              }catch(_){ toast('Undo failed'); }
+            });
+          });
+        }catch(_){ toast('Failed to load log'); }
+      });
+      load();
+    })();
+  </script>
+  <!-- Admin Override (Calf) -->
+  <script>
+    (function initCalfOverride(){
+      const loginBtn = document.getElementById('overrideLoginBtn');
+      const pwdInput = document.getElementById('overridePassword');
+      const logoutBtn = document.getElementById('overrideLogoutBtn');
+      async function post(url, body){
+        const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+        if(!r.ok){ const t=await r.text(); const e=new Error(t||'Request failed'); e.status=r.status; throw e; }
+        return r.json();
+      }
+      if(loginBtn){
+        loginBtn.addEventListener('click', async ()=>{
+          try{
+            const pw=(pwdInput && pwdInput.value || '').trim();
+            if(!pw){ toast('Enter password'); return; }
+            await post('/override/login',{password: pw});
+            toast('Override unlocked');
+            try{ sessionStorage.setItem('overrideSkipLogoutOnce','1'); }catch(_){}
+            setTimeout(()=> location.reload(), 600);
+          }catch(e){ toast(e.status===401?'Invalid password':'Login failed'); }
+        });
+      }
+      if(logoutBtn){
+        logoutBtn.addEventListener('click', async ()=>{
+          try{ await post('/override/logout',{}); toast('Override locked'); setTimeout(()=> location.reload(), 600); }catch(e){ toast('Logout failed'); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

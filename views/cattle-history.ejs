@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Cattle History</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .list { display: grid; grid-template-columns: 1fr 140px 160px 1fr; gap: 8px; align-items: center; }
+    .row { padding: 10px; border-bottom: 1px solid #e9ecef; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.75rem; }
+    .tag.miscarriage { background:#fff3cd; color:#664d03; }
+    .tag.died { background:#f8d7da; color:#842029; }
+    .hdr { font-weight:600; color:#0f5132; margin:16px 0 8px; }
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  <main style="max-width:960px;margin:0 auto;padding:16px;">
+    <h2 class="hdr">Miscarriages & Losses</h2>
+    <% if ((losses||[]).length===0) { %>
+      <div style="color:#6c757d;">No records found.</div>
+    <% } else { %>
+      <div class="list">
+        <div class="row" style="font-weight:600;">Calf</div>
+        <div class="row" style="font-weight:600;">Status</div>
+        <div class="row" style="font-weight:600;">Birth Date</div>
+        <div class="row" style="font-weight:600;">Mother</div>
+        <% losses.forEach(function(l){ %>
+          <div class="row"><a href="/profile/calf/<%= l.id %>"><%= l.name || ('Calf '+ l.id.slice(-4)) %></a></div>
+          <div class="row"><span class="tag <%= l.status %>"><%= l.status.charAt(0).toUpperCase()+l.status.slice(1) %></span></div>
+          <div class="row"><%= l.birthDate ? new Date(l.birthDate).toLocaleDateString() : '—' %></div>
+          <div class="row"><% if (l.motherNumber) { %><a href="/profile/cow/number/<%= l.motherNumber %>"><%= l.motherName || l.motherNumber %></a><% } else { %>—<% } %></div>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+</body>
+</html>

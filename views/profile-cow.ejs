@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cow Profile</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .profile-wrap{ display:grid; grid-template-columns: 1fr; gap:16px; }
+    .grid-two{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:stretch; }
+    .grid-three{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:stretch; }
+    .card{ background:#fff; border:1px solid #e9ecef; border-radius:10px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.03); }
+    .avatar{ width:160px; height:160px; border-radius:50%; background:#f1f3f5; display:flex; align-items:center; justify-content:center; font-size:56px; font-weight:800; color:#495057; overflow:hidden; }
+    .kv{ display:grid; grid-template-columns: 180px 1fr; gap:10px 14px; }
+    .kv label{ font-weight:700; color:#212529; }
+    .kv span, .kv input{ color:#495057; }
+    .actions{ display:flex; gap:10px; margin-top:10px; }
+    /* Use global .btn styles; avoid local overrides for consistency */
+    
+    .section-title{ font-size:1.1rem; font-weight:700; margin: 0 0 10px; }
+    .badge{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:.85rem; font-weight:700; }
+    .badge.success{ background:#d1e7dd; color:#0f5132; }
+    .badge.warning{ background:#fff3cd; color:#664d03; }
+    .badge.secondary{ background:#e2e3e5; color:#41464b; }
+    .toast{ position:fixed; bottom:16px; left:16px; z-index:1001; display:none; }
+    .toast .item{ background:#111; color:#fff; padding:10px 14px; border-radius:10px; margin-top:8px; min-width:220px; }
+    /* Removed page-specific sidebar overrides to use global styles in styles.css */
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  <nav class="sidebar" id="sidebar">
+    <div class="brand" style="display:flex; align-items:center;">
+      <button class="close-sidebar" aria-label="Close navigation" style="background:transparent;border:none;cursor:pointer;margin-right:10px;position:relative;">
+        <span style="display:block;width:20px;height:2px;background:#000;transform:rotate(45deg);position:absolute;top:50%;left:50%;transform-origin:center;margin:-1px 0 0 -10px;"></span>
+        <span style="display:block;width:20px;height:2px;background:#000;transform:rotate(-45deg);position:absolute;top:50%;left:50%;transform-origin:center;margin:-1px 0 0 -10px;"></span>
+      </button>
+      <img src="/images/icons/logo.png" alt="Logo"><h1>Sweet Cow</h1>
+    </div>
+    <ul class="nav">
+      <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
+      <li><a href="/cattle-viewer" class="active">Cattle Viewer</a></li>
+      <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+    </ul>
+  </nav>
+  <main class="content">
+    <a href="/cattle-viewer" class="btn muted" style="text-decoration:none;display:inline-block;padding:6px 10px;">Back</a>
+    <h1 style="margin-top:10px;">Cow Profile</h1>
+    <div id="profile-nav" style="display:flex;gap:10px;margin:6px 0 14px;align-items:center;flex-wrap:wrap;">
+      <button type="button" id="prevProfile" class="btn muted" style="padding:6px 10px;min-width:90px;">Prev</button>
+      <button type="button" id="nextProfile" class="btn muted" style="padding:6px 10px;min-width:90px;">Next</button>
+      <span style="font-size:.7rem;opacity:.7;">Cows only</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button type="button" id="goRegistry" class="btn primary" style="padding:6px 12px;">Registry Focus</button>
+      </div>
+    </div>
+    <div class="profile-wrap">
+      <!-- Top row: PFP | Important Details | Due Tasks -->
+      <div class="grid-three">
+      <div class="card">
+        <div class="avatar" id="avatar">
+          <% if (cow.profileImageUrl) { %>
+            <img src="<%= cow.profileImageUrl %>" alt="Profile" style="width:100%;height:100%;object-fit:cover;"/>
+          <% } else if (cow.cowName || cow.cowNumber) { %>
+            <%= (cow.cowName || cow.cowNumber)[0].toUpperCase() %>
+          <% } else { %>
+            <img src="/images/photos/cowpfpna.png" alt="No profile" style="width:100%;height:100%;object-fit:cover;"/>
+          <% } %>
+        </div>
+        <div class="actions">
+          <input type="file" id="pfpInput" accept="image/*" style="display:none;" />
+          <button id="changePhotoBtn" class="btn muted" type="button">Change Photo</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Details</span>
+          <div class="actions" style="display:flex; gap:8px;">
+            <button id="editBtn" class="btn primary" type="button">Edit</button>
+            <button id="saveBtn" class="btn primary" type="button" style="display:none;">Save</button>
+            <button id="cancelBtn" class="btn muted" type="button" style="display:none;">Cancel</button>
+          </div>
+        </div>
+        <div class="kv" id="view-kv">
+          <label>Cow Number:</label><span id="v-cowNumber"><%= cow.cowNumber || 'N/A' %></span>
+          <label>Cow Name:</label><span id="v-cowName"><%= cow.cowName || 'N/A' %></span>
+          <label>Cow Race:</label><span id="v-race"><%= cow.race || 'N/A' %></span>
+          <label>Date of Birth:</label><span id="v-dob"><%= cow.dob ? new Date(cow.dob).toLocaleDateString() : 'N/A' %></span>
+          <label>Notes:</label><span id="v-notes"><%= cow.notes || '—' %></span>
+        </div>
+        <form id="edit-form" class="kv" style="display:none;">
+          <label>Cow Number:</label><input name="registeringNumber" value="<%= cow.cowNumber || '' %>">
+          <label>Cow Name:</label><input name="registeringName" value="<%= cow.cowName || '' %>">
+          <label>Cow Race:</label><input name="registeringRace" value="<%= cow.race || '' %>">
+          <label>Date of Birth:</label><input type="date" name="dob" value="<%= cow.dob ? new Date(cow.dob).toISOString().slice(0,10) : '' %>">
+          <label>Notes:</label><input name="notes" value="<%- (cow.notes || '').replace(/"/g,'&quot;') %>">
+          <input type="hidden" name="type" value="cow">
+          <input type="hidden" name="id" value="<%= cow._id %>">
+        </form>
+      </div>
+      <div class="card" id="dueTasksCard">
+          <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Due Tasks</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button id="refreshDueTasks" class="btn muted" type="button" style="padding:6px 10px;">Refresh</button>
+              <button id="openConfirmLog" class="btn muted" type="button" style="padding:6px 10px;">Confirmation Log</button>
+            </div>
+          </div>
+          <div id="dueTasksBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading tasks…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Second row: Upcoming Tasks | Alerts -->
+      <div class="grid-two">
+        <div class="card" id="cowUpcomingTasksCard">
+          <div class="section-title">Upcoming Tasks</div>
+          <div id="cowUpcomingTasksBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading upcoming…</div>
+          </div>
+        </div>
+        <div class="card" id="cowAlertsCard">
+          <div class="section-title">Alerts</div>
+          <div id="cowAlertsBody" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="opacity:.6;font-size:.85rem;">Loading alerts…</div>
+          </div>
+        </div>
+      </div>
+      <!-- Third row: Reproduction | Admin Override -->
+      <div class="grid-two">
+      <div class="card">
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span>Reproduction</span>
+            <button id="openInsemHistory" type="button" class="btn muted" style="padding:6px 10px;font-size:.6rem;">History (<%= insems? insems.length:0 %>)</button>
+          </div>
+          <small style="font-size:.6rem;opacity:.6;">Status & Actions</small>
+        </div>
+        <div style="margin-bottom:6px;">
+          <% if (repro.status === 'Pregnant') { %>
+            <span class="badge success">Pregnant</span>
+          <% } else if (repro.status === 'Pending') { %>
+            <span class="badge warning">Pending</span>
+          <% } else { %>
+            <span class="badge secondary">Eligible</span>
+          <% } %>
+        </div>
+        <div class="kv" style="margin-top:6px;">
+          <label>Last Calving:</label><span id="v-lastCalving">
+            <%= cow.lastCalving ? new Date(cow.lastCalving).toLocaleDateString() : 'N/A' %>
+            <% if (typeof repro.daysUntilLastCalving === 'number') { %>
+              (<%= repro.daysUntilLastCalving %> days)
+            <% } %>
+          </span>
+          <% if (repro.status === 'Open') { %>
+            <label>Next Insemination Earliest:</label><span>
+              <%= repro.nextInseminationEarliest ? new Date(repro.nextInseminationEarliest).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilNextInseminationEarliest === 'number') { %>
+                (<%= repro.daysUntilNextInseminationEarliest %> days)
+              <% } %>
+            </span>
+            <label>Last Insemination:</label><span>
+              <%= repro.latest ? new Date(repro.latest.date).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilLatestInsemination === 'number') { %>
+                (<%= repro.daysUntilLatestInsemination %> days)
+              <% } %>
+            </span>
+          <% } %>
+          <% if (repro.status === 'Pending') { %>
+            <label>Last Insemination:</label><span>
+              <%= repro.latest ? new Date(repro.latest.date).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilLatestInsemination === 'number') { %>
+                (<%= repro.daysUntilLatestInsemination %> days)
+              <% } %>
+            </span>
+            <label>Pregnancy Check (Retry Window End):</label><span>
+              <%= repro.retryWindowEnd ? new Date(repro.retryWindowEnd).toLocaleDateString() : 'N/A' %>
+              (<%= typeof repro.daysUntilRetryWindowEnd === 'number' ? repro.daysUntilRetryWindowEnd + ' days' : 'n/a' %>)
+            </span>
+          <% } %>
+          <% if (repro.status === 'Pregnant') { %>
+            <label>Conception:</label><span>
+              <%= repro.conceptionDate ? new Date(repro.conceptionDate).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilConception === 'number') { %>
+                (<%= repro.daysUntilConception %> days)
+              <% } %>
+            </span>
+            <label>Dry-Off After Successful Insemination:</label><span>
+              <%= repro.dryOffDate ? new Date(repro.dryOffDate).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilDryOff === 'number') { %>
+                (<%= repro.daysUntilDryOff %> days)
+              <% } %>
+            </span>
+            <label>Change Feed After Successful Insemination:</label><span>
+              <%= repro.changeFeedDate ? new Date(repro.changeFeedDate).toLocaleDateString() : 'N/A' %>
+              <% if (typeof repro.daysUntilChangeFeed === 'number') { %>
+                (<%= repro.daysUntilChangeFeed %> days)
+              <% } %>
+            </span>
+            <label>Gestation Period (Est. Calving):</label><span>
+              <%= repro.estCalving ? new Date(repro.estCalving).toLocaleDateString() : 'N/A' %>
+              (<%= typeof repro.daysUntilCalving === 'number' ? repro.daysUntilCalving + ' days' : 'n/a' %>)
+            </span>
+          <% } %>
+        </div>
+        <div id="repro-actions" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start;">
+        </div>
+      </div>
+      <!-- Admin Override -->
+      <div class="card">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Admin Override</span>
+          <small style="font-size:.6rem;opacity:.6;">Restricted actions</small>
+        </div>
+        <% if (!override) { %>
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:360px;">
+            <div style="font-size:.7rem;color:#6c757d;">Enter password to unlock advanced editing & force-cycle actions.</div>
+            <input type="password" id="overridePassword" placeholder="Password" autocomplete="new-password" style="padding:8px 10px;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;" />
+            <button id="overrideLoginBtn" class="btn primary" type="button">Unlock Override</button>
+          </div>
+        <% } else { %>
+          <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">
+              <label style="font-size:.7rem;font-weight:600;">Force Insemination Date</label>
+              <input type="date" id="forceInsemDate" value="<%= new Date().toISOString().slice(0,10) %>" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.75rem;" />
+              <button id="forceInsemBtn" class="btn primary" type="button">Force Attempt</button>
+              <small style="font-size:.55rem;color:#6c757d;">Ignores window restrictions.</small>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">
+              <label style="font-size:.7rem;font-weight:600;">Edit Last Calving Date</label>
+              <input type="date" id="overrideCalvingDate" value="<%= cow.lastCalving ? new Date(cow.lastCalving).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.75rem;" />
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button id="overrideSetCalving" class="btn muted" type="button">Update Calving</button>
+                <button id="clearCalvingBtn" class="btn muted" type="button" style="background:#dc3545;">Clear Calving</button>
+              </div>
+              <small style="font-size:.55rem;color:#6c757d;">Adjust or clear cycle baseline.</small>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:240px;">
+              <label style="font-size:.7rem;font-weight:600;">Latest Insemination</label>
+              <% if (repro.latest) { %>
+                <div style="font-size:.7rem;opacity:.8;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <span>Date: <%= new Date(repro.latest.date).toLocaleDateString() %></span>
+                  <% if (repro.latest.forced) { %>
+                    <span class="badge warning" style="background:#ffe8cc;color:#d9480f;padding:2px 8px;font-size:.55rem;">Forced</span>
+                  <% } else { %>
+                    <span class="badge secondary" style="padding:2px 8px;font-size:.55rem;">Standard</span>
+                  <% } %>
+                </div>
+                <button id="deleteLatestInsemBtn" data-latest-id="<%= repro.latest._id %>" class="btn muted" type="button" style="background:#dc3545;">Delete Latest Attempt</button>
+              <% } else { %>
+                <div style="font-size:.7rem;opacity:.6;">No attempts recorded</div>
+              <% } %>
+              <small style="font-size:.55rem;color:#6c757d;">Removes record and recalculates status.</small>
+              <button id="clearAllInsemBtn" class="btn muted" type="button" style="margin-top:6px;background:#6c757d;">Clear All Inseminations</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;max-width:180px;">
+              <label style="font-size:.7rem;font-weight:600;">Override Session</label>
+              <button id="overrideLogoutBtn" class="btn muted" type="button" style="background:#dc3545;">Lock Override</button>
+              <button id="openAuditLog" class="btn muted" type="button">Changes Log</button>
+              <small style="font-size:.55rem;color:#6c757d;">Ends elevated access.</small>
+            </div>
+          </div>
+        <% } %>
+      </div>
+      </div>
+      
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Lineage</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button id="layoutToggle" type="button" class="btn muted" style="padding:6px 10px;">Layout: Tree</button>
+            <button id="arrangeLineage" type="button" class="btn muted" style="padding:6px 10px;">Re‑Arrange</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; font-size:.7rem; align-items:center;">
+          <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#d1e7dd;border:1px solid #0f5132"></span>Cow</div>
+          <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#e0cffc;border:1px solid #3d0a91"></span>Bull</div>
+          <div style="display:flex;align-items:center; gap:4px;"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#fff3cd;border:1px solid #664d03"></span>Calf</div>
+          <div style="opacity:.6;">Wheel = zoom, drag empty space = pan, click connection = actions</div>
+          <div style="margin-left:auto; display:flex; gap:6px;">
+            <button type="button" id="zoomOutBtn" class="btn muted" style="padding:4px 8px;">−</button>
+            <button type="button" id="zoomInBtn" class="btn muted" style="padding:4px 8px;">+</button>
+            <button type="button" id="fitBtn" class="btn primary" style="padding:4px 10px;">Fit</button>
+          </div>
+        </div>
+        <style>@media (max-width:640px){#lineage-vis .btn{padding:6px 8px;font-size:.65rem;}}</style>
+        <div id="lineage-vis" style="position:relative; min-height:300px; background:linear-gradient(180deg,#f8f9fa 0,#f1f3f5 100%); border:1px solid #e9ecef; border-radius:10px; overflow:hidden;">
+          <div style="padding:10px; font-size:.85rem; color:#6c757d;">Loading lineage...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="toast" class="toast"></div>
+  <!-- Reusable confirmation popup -->
+  <div id="confirmOverlay" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+    <div id="confirmBox" style="background:#fff;max-width:360px;width:92%;padding:18px 20px;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:14px;">
+      <h3 id="confirmTitle" style="margin:0;font-size:1rem;font-weight:700;">Confirm</h3>
+      <div id="confirmMessage" style="font-size:.8rem;line-height:1.4;color:#495057;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button type="button" id="confirmCancel" class="btn muted" style="background:#6c757d;">Cancel</button>
+        <button type="button" id="confirmOk" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Sidebar toggle behavior (aligned with viewer/registry pages)
+    (function initSidebar(){
+      const sidebar=document.getElementById('sidebar');
+      const hamburger=document.querySelector('.hamburger');
+      const closeBtns=sidebar?sidebar.querySelectorAll('.close-sidebar'):[];
+      if(hamburger && sidebar){
+        hamburger.addEventListener('click',()=> sidebar.classList.toggle('open'));
+        closeBtns.forEach(btn=> btn.addEventListener('click',()=> sidebar.classList.remove('open')));
+        document.addEventListener('click',(e)=>{
+          if(!sidebar.contains(e.target) && !hamburger.contains(e.target)) sidebar.classList.remove('open');
+        });
+      }
+    })();
+    // Toast utility (added, was missing definition used elsewhere)
+    function showToast(msg){
+      const box=document.getElementById('toast');
+      if(!box) return; box.style.display='block';
+      const item=document.createElement('div'); item.className='item'; item.textContent=msg; box.appendChild(item);
+      setTimeout(()=>{ if(item.parentNode) item.parentNode.removeChild(item); if(!box.children.length) box.style.display='none'; }, 3400);
+    }
+    // Inline data payload for insemination attempts (avoid EJS in JS code for linter)
+    (function injectInsemData(){
+      if(!document.getElementById('insemsData')){
+        const s=document.createElement('script'); s.id='insemsData'; s.type='application/json';
+        s.textContent='<%- JSON.stringify(insems || []) %>';
+        document.head.appendChild(s);
+      }
+    })();
+    // Insemination history modal (single implementation retained below)
+    // Navigation (prev/next) restore
+    (function initNav(){
+      const prevBtn=document.getElementById('prevProfile');
+      const nextBtn=document.getElementById('nextProfile');
+      const regBtn=document.getElementById('goRegistry');
+      if(regBtn){ regBtn.onclick=()=>{ window.location.href='/cattle-registry?focus=cow:<%= cow._id %>&openInfo=true'; }; }
+      if(prevBtn || nextBtn){
+        fetch('/profile/nav/cow/<%= cow._id %>').then(r=> r.json()).then(nav=>{
+          if(prevBtn){ if(nav.previous){ prevBtn.disabled=false; prevBtn.textContent='◀ '+nav.previous.label.slice(0,12); prevBtn.onclick=()=> window.location.href='/profile/'+nav.previous.type+'/'+nav.previous.id; } else { prevBtn.disabled=true; } }
+          if(nextBtn){ if(nav.next){ nextBtn.disabled=false; nextBtn.textContent=nav.next.label.slice(0,12)+' ▶'; nextBtn.onclick=()=> window.location.href='/profile/'+nav.next.type+'/'+nav.next.id; } else { nextBtn.disabled=true; } }
+        }).catch(err=>{ console.warn('nav fetch error', err); if(prevBtn) prevBtn.disabled=true; if(nextBtn) nextBtn.disabled=true; });
+      }
+    })();
+    // Lineage rendering (matches API: { nodes, edges })
+    (function initLineage(){
+      const container=document.getElementById('lineageGraph');
+      const loading=document.getElementById('lineageLoading');
+      if(!container) return;
+      const rootId='<%= cow._id %>';
+      function colorFor(type){
+        if(type==='cow') return '#d1e7dd';
+        if(type==='bull') return '#e0cffc';
+        if(type==='calf') return '#fff3cd';
+        return '#f8f9fa';
+      }
+      function makeNode(n){
+        const el=document.createElement('div');
+        el.className='lineage-node';
+        el.dataset.id=n._id; el.dataset.type=n.type;
+        el.style.cssText='position:absolute;min-width:90px;max-width:160px;padding:6px 8px;border-radius:8px;border:1px solid #adb5bd;background:'+colorFor(n.type)+';font-size:.6rem;line-height:1.2;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.08);';
+        const title=(n.label||n.name||n.number||'—');
+        el.innerHTML='<strong style="display:block;font-size:.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+title+'</strong>'+'<span style="opacity:.65;text-transform:capitalize;">'+n.type+(n._id===rootId?' • this':'')+'</span>';
+        el.onclick=()=> window.location.href='/profile/'+n.type+'/'+n._id;
+        return el;
+      }
+      function layoutGraph(data){
+        container.innerHTML='';
+        const width=container.clientWidth; const rowH=110;
+        // Build adjacency and BFS layers
+        const adj=new Map();
+        data.edges.forEach(e=>{ if(!adj.has(e.from)) adj.set(e.from, new Set()); if(!adj.has(e.to)) adj.set(e.to, new Set()); adj.get(e.from).add(e.to); adj.get(e.to).add(e.from); });
+        const nodesById=new Map(data.nodes.map(n=>[n._id,n]));
+        const visited=new Set([rootId]); const layers=[[rootId]]; let frontier=[rootId]; const maxDepth=4;
+        for(let d=1; d<=maxDepth; d++){
+          const next=[]; frontier.forEach(id=>{ (adj.get(id)||[]).forEach(nb=>{ if(!visited.has(nb)){ visited.add(nb); next.push(nb);} }); });
+          if(!next.length) break; layers.push(next); frontier=next;
+        }
+        const totalH = layers.length*rowH + 20; container.style.height=totalH+'px';
+        const placed=new Map();
+        layers.forEach((layer,idx)=>{
+          const y = idx*rowH + 10; const count=layer.length;
+          layer.forEach((id,i)=>{
+            const n=nodesById.get(id); if(!n) return;
+            const x=((i+1)/(count+1))*width; const el=makeNode(n); el.style.left=(x-70)+'px'; el.style.top=y+'px'; container.appendChild(el); placed.set(id, el);
+          });
+        });
+        // Draw edges
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('width','100%'); svg.setAttribute('height',totalH);
+        svg.style.position='absolute'; svg.style.inset='0'; svg.style.pointerEvents='none';
+        function center(el){ return { x: el.offsetLeft + el.offsetWidth/2, y: el.offsetTop + el.offsetHeight/2 } }
+        data.edges.forEach(e=>{
+          const a=placed.get(e.from), b=placed.get(e.to); if(!a||!b) return;
+          const pa=center(a), pb=center(b); const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+          line.setAttribute('x1',pa.x); line.setAttribute('y1',pa.y); line.setAttribute('x2',pb.x); line.setAttribute('y2',pb.y); line.setAttribute('stroke','#b0b7c3'); line.setAttribute('stroke-width','1.2'); svg.appendChild(line);
+        });
+        container.appendChild(svg);
+      }
+      fetch('/lineage/cow/'+rootId).then(r=> r.json()).then(data=>{ loading.style.display='none'; container.style.display='block'; layoutGraph(data); })
+        .catch(err=>{ loading.textContent='Failed to load lineage'; console.error('lineage fetch error', err); });
+    })();
+  </script>
+  <script>
+    // Profile Due Tasks + Confirmation Log (cow)
+    (function initCowDueTasks(){
+      const entityType='cow';
+      const entityId='<%= cow._id %>';
+      const body=document.getElementById('dueTasksBody');
+      const refreshBtn=document.getElementById('refreshDueTasks');
+      const openLogBtn=document.getElementById('openConfirmLog');
+      const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545' };
+      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      async function fetchAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
+      function filterTasks(A){
+        // Build a unique key per event: entity + type + event date (when)
+        const makeKey = (x)=> `${entityType}:${entityId}:${x.type}:${new Date(x.when).toISOString().slice(0,10)}`;
+        const map = new Map();
+        const week=(A.week||[]).flatMap(d=> (d.items||[]).map(x=> ({...x, source:'week'})));
+        const pd=(A.pastDue||[]).map(x=> ({...x, source:'pastDue'}));
+        const all=[...pd, ...week].filter(it=> it.entity && it.entity.type===entityType && String(it.entity.id)===String(entityId));
+        for(const it of all){
+          const key = makeKey(it);
+          const existing = map.get(key);
+          if(existing){
+            // Merge: prefer keeping alertDate if present, mark hadAlert
+            const hadAlert = !!(existing.hadAlert || it.source==='pastDue');
+            const alertDate = existing.alertDate || it.alertDate || null;
+            map.set(key, { ...existing, ...it, hadAlert, alertDate });
+          } else {
+            map.set(key, { ...it, hadAlert: it.source==='pastDue' });
+          }
+        }
+        return Array.from(map.values());
+      }
+      function render(list){
+        if(!body) return;
+        if(!list.length){ body.innerHTML='<div style="opacity:.6;font-size:.85rem;">No due or upcoming tasks.</div>'; return; }
+        body.innerHTML='';
+        // Sort by event due date (when)
+        list.sort((a,b)=> new Date(a.when)-new Date(b.when));
+        list.forEach(it=>{
+          const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;flex-wrap:wrap;';
+          const left=document.createElement('div'); left.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+          const dot=document.createElement('span'); dot.style.cssText=`width:8px;height:8px;border-radius:999px;background:${colors[it.type]||'#adb5bd'};display:inline-block;`;
+          const text=document.createElement('div'); text.style.cssText='display:flex;flex-direction:column;gap:2px;';
+          const title=document.createElement('div'); title.style.cssText='font-weight:700;font-size:.85rem;color:#212529;'; title.textContent=it.label;
+          const sub=document.createElement('div'); sub.style.cssText='font-size:.72rem;color:#6c757d;';
+          const whenStr=new Date(it.when).toLocaleDateString();
+          const alertStr=it.alertDate? new Date(it.alertDate).toLocaleDateString() : '';
+          sub.textContent = (it.hadAlert && alertStr ? `Alert was ${alertStr} • Event: ${whenStr}` : `Event: ${whenStr}`);
+          text.appendChild(title); text.appendChild(sub);
+          left.appendChild(dot); left.appendChild(text);
+          const actions=document.createElement('div'); actions.style.cssText='display:flex;gap:8px;';
+          const btn=document.createElement('button'); btn.className='btn primary'; btn.type='button'; btn.style.padding='6px 10px'; btn.textContent='Confirm Done';
+          btn.onclick= async ()=>{
+            try{
+              const ok = await (typeof showConfirm==='function' ? showConfirm('Mark this task as done?',{title:'Confirm Task'}) : Promise.resolve(window.confirm('Mark this task as done?')));
+              if(!ok) return;
+              const payload={ entityType, entityId, type: it.type, when: it.when, alertOn: it.alertDate };
+              const r=await fetch('/confirmation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+              if(!r.ok){ throw new Error(await r.text()||'confirm failed'); }
+              showToast('Task confirmed');
+              row.remove(); if(!body.children.length){ render([]); }
+            }catch(e){ showToast('Confirm failed'); }
+          };
+          actions.appendChild(btn);
+          row.appendChild(left); row.appendChild(actions);
+          body.appendChild(row);
+        });
+      }
+      async function load(){
+        try{ const today=new Date(); const A=await fetchAlerts(ymd(today)); const tasks=filterTasks(A); render(tasks); }catch(_){ if(body) body.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load tasks</div>'; }
+      }
+      refreshBtn && (refreshBtn.onclick=load);
+      openLogBtn && (openLogBtn.onclick= async ()=>{
+        try{
+          const r=await fetch(`/confirmations?entityType=${entityType}&entityId=${entityId}`); const list=await r.json();
+          const wrap=document.createElement('div'); wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1400;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;';
+          const box=document.createElement('div'); box.style.cssText='background:#fff;max-width:900px;width:100%;border-radius:12px;padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:12px;'; wrap.appendChild(box);
+          box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 style="margin:0;font-size:1rem;">Confirmation Log</h3><button class="btn muted" id="closeLog">Close</button></div>'+
+            '<div style="overflow:auto;max-height:60vh;border:1px solid #e9ecef;border-radius:8px;">'+
+            '<table style="width:100%;border-collapse:collapse;font-size:.72rem;"><thead><tr style="background:#f8f9fa;"><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">When</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Type</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Event Date</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Note</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Status</th><th></th></tr></thead><tbody>'+
+            (Array.isArray(list)? list: []).map(c=>{
+              const dt=new Date(c.createdAt||c.updatedAt||Date.now()).toLocaleString();
+              const when=new Date(c.when).toLocaleDateString();
+              const undone=!!c.undone; const btn = undone? '' : '<button class="btn muted undoBtn" data-id="'+c._id+'" style="padding:4px 8px;background:#dc3545;">Undo</button>';
+              const status = undone? '<span style="font-size:.7rem;color:#dc3545;background:#f8d7da;border:1px solid #f5c2c7;border-radius:999px;padding:2px 6px;">Undone</span>' : '<span style="font-size:.7rem;color:#198754;background:#d1e7dd;border:1px solid #badbcc;border-radius:999px;padding:2px 6px;">Confirmed</span>';
+              return '<tr><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+dt+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+c.type+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+when+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(c.note||'')+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+status+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+btn+'</td></tr>';
+            }).join('') + '</tbody></table></div>';
+          document.body.appendChild(wrap);
+          box.querySelector('#closeLog').onclick=()=> wrap.remove();
+          wrap.onclick=(e)=>{ if(e.target===wrap) wrap.remove(); };
+          box.querySelectorAll('.undoBtn').forEach(btn=>{
+            btn.addEventListener('click', async ()=>{
+              try{
+                const id=btn.getAttribute('data-id'); const ok = await (typeof showConfirm==='function' ? showConfirm('Undo this confirmation?',{title:'Undo Confirmation'}) : Promise.resolve(window.confirm('Undo this confirmation?')));
+                if(!ok) return;
+                const rr=await fetch('/confirmation/'+id+'/undo',{method:'POST'});
+                if(!rr.ok){ showToast('Undo failed'); return; }
+                showToast('Undone');
+                // Mark row as undone and disable button
+                const tr = btn.closest('tr'); if(tr){
+                  const statusCell = tr.children[4]; if(statusCell){ statusCell.innerHTML = '<span style="font-size:.7rem;color:#dc3545;background:#f8d7da;border:1px solid #f5c2c7;border-radius:999px;padding:2px 6px;">Undone</span>'; }
+                  btn.remove();
+                }
+              }catch(_){ showToast('Undo failed'); }
+            });
+          });
+        }catch(_){ showToast('Failed to load log'); }
+      });
+      load();
+    })();
+  </script>
+  <script>
+    // Cow Upcoming Tasks and Alerts (separate)
+    (function initCowUpcomingSections(){
+      const entityType='cow'; const entityId='<%= cow._id %>';
+      const tasksBody = document.getElementById('cowUpcomingTasksBody');
+      const alertsBody = document.getElementById('cowAlertsBody');
+      const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545', weaning:'#0ea5e9' };
+      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      async function fetchAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
+      let current=null, next=null;
+      function pickMonth(state, y, m, useDue){ const key = useDue? 'monthDue':'month'; const mon=(state&&state[key])||{}; if(mon.year===y && mon.monthIndex===m) return mon; return null; }
+      function itemsForDay(state, y, m, d, useDue){ const mon = useDue? state.monthDue: state.month; const days=(mon&&mon.days)||[]; const hit = days.find(x=> x.day===d); return hit? (hit.items||[]) : []; }
+      function renderList(body, list, mode){ if(!body) return; if(!list.length){ body.innerHTML = `<div style="opacity:.6;font-size:.85rem;">No ${mode}</div>`; return; } body.innerHTML=''; list.forEach(it=>{
+          const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;flex-wrap:wrap;';
+          const left=document.createElement('div'); left.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+          const dot=document.createElement('span'); dot.style.cssText=`width:8px;height:8px;border-radius:999px;background:${colors[it.type]||'#adb5bd'};display:inline-block;`;
+          const text=document.createElement('div'); text.style.cssText='display:flex;flex-direction:column;gap:2px;';
+          const title=document.createElement('div'); title.style.cssText='font-weight:700;font-size:.85rem;color:#212529;'; title.textContent=it.label;
+          const sub=document.createElement('div'); sub.style.cssText='font-size:.72rem;color:#6c757d;'; sub.textContent = mode==='alerts'? (`Alert: ${new Date(it.alertDate).toLocaleDateString()} • Event: ${new Date(it.when).toLocaleDateString()}`) : (`Due: ${new Date(it.when).toLocaleDateString()}`);
+          text.appendChild(title); text.appendChild(sub);
+          left.appendChild(dot); left.appendChild(text);
+          row.appendChild(left);
+          body.appendChild(row);
+        }); }
+      function* nextDays(n){ const today=new Date(); for(let i=0;i<n;i++){ yield new Date(today.getFullYear(), today.getMonth(), today.getDate()+i); } }
+      async function load(){
+        try{
+          const today=new Date(); current = await fetchAlerts(ymd(today)); const nm = new Date(today.getFullYear(), today.getMonth()+1, 1); next = await fetchAlerts(ymd(nm));
+          const tasks=[]; const alerts=[]; const allowId=String(entityId);
+          for(const day of nextDays(21)){
+            const y=day.getFullYear(), m=day.getMonth(), d=day.getDate();
+            const dueItems = (pickMonth(current,y,m,true)? itemsForDay(current,y,m,d,true) : (pickMonth(next,y,m,true)? itemsForDay(next,y,m,d,true): [])).filter(it=> it.entity && it.entity.type===entityType && String(it.entity.id)===allowId).map(it=> ({ ...it, dueDate: day }));
+            const alertItems = (pickMonth(current,y,m,false)? itemsForDay(current,y,m,d,false) : (pickMonth(next,y,m,false)? itemsForDay(next,y,m,d,false): [])).filter(it=> it.entity && it.entity.type===entityType && String(it.entity.id)===allowId).map(it=> ({ ...it, alertDate: day }));
+            tasks.push(...dueItems); alerts.push(...alertItems);
+          }
+          tasks.sort((a,b)=> a.dueDate - b.dueDate); alerts.sort((a,b)=> a.alertDate - b.alertDate);
+          renderList(tasksBody, tasks, 'tasks');
+          renderList(alertsBody, alerts, 'alerts');
+        }catch(_){ tasksBody && (tasksBody.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load</div>'); alertsBody && (alertsBody.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load</div>'); }
+      }
+      load();
+    })();
+  </script>
+  
+  <script>
+    // All history modal (inseminations, calvings, losses) under the same button
+    (function(){
+      const openBtn = document.getElementById('openInsemHistory');
+      if(!openBtn) return;
+      let modalEl=null;
+      function buildModal(){
+        if(modalEl) return modalEl;
+        modalEl=document.createElement('div');
+        modalEl.id='insemHistoryModal';
+        modalEl.style.cssText='position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;overflow:auto;';
+        const inner=document.createElement('div');
+        inner.style.cssText='background:#fff;width:100%;max-width:880px;border-radius:14px;padding:20px 22px;box-shadow:0 8px 28px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:16px;';
+        inner.innerHTML=`
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <h2 style="margin:0;font-size:1.05rem;">History</h2>
+            <div style="display:flex;gap:8px;">
+              <button type="button" id="closeInsemHistory" class="btn muted" style="padding:6px 14px;">Close</button>
+            </div>
+          </div>
+          <div style="font-size:.65rem;color:#6c757d;">All events for this cow: inseminations, calvings, and losses.</div>
+          <div id="allHistoryContainer" style="display:flex;flex-direction:column;gap:8px;"></div>
+        `;
+        modalEl.appendChild(inner);
+        document.body.appendChild(modalEl);
+        function closeModal(){ if(modalEl && modalEl.parentNode) modalEl.parentNode.removeChild(modalEl); modalEl=null; }
+        inner.querySelector('#closeInsemHistory').addEventListener('click', closeModal);
+        modalEl.addEventListener('click', (e)=>{ if(e.target===modalEl) closeModal(); });
+        return modalEl;
+      }
+      function initEnhancements(){
+        if(!modalEl) return;
+        const cowId = '<%= cow._id %>';
+        const container = modalEl.querySelector('#allHistoryContainer');
+        function fmt(d){ try{ return new Date(d).toLocaleDateString(); }catch(_){ return 'N/A'; } }
+        function cap(s){ return (s||'').charAt(0).toUpperCase()+(s||'').slice(1); }
+        function badgeFor(type){ return type==='calving' ? 'success' : type==='insemination' ? 'warning' : type==='loss' ? 'warning' : 'secondary'; }
+        Promise.all([
+          fetch('/cow/'+cowId+'/history').then(r=> r.json()).catch(()=>({items:[]})),
+          fetch('/cow/'+cowId+'/losses').then(r=> r.json()).catch(()=>({items:[]})),
+        ]).then(([hist, loss])=>{
+          const H = Array.isArray(hist.items)? hist.items: [];
+          const L = Array.isArray(loss.items)? loss.items: [];
+          const merged = [
+            ...H.map(it=>({
+              type: it.type,
+              at: it.details?.date || it.details?.to || it.at,
+              text: (function(){
+                if(it.type==='insemination'){
+                  const act=it.action?.split('.')?.[1]||'add';
+                  return `${fmt(it.details?.date || it.at)} — ${cap(act)}${it.details?.notes? ' • '+it.details.notes:''}`;
+                } else if(it.type==='calving'){
+                  const calfPart = it.calf ? `Calf: ${(it.calf.name||'Unnamed')} (${it.calf.status})` : '';
+                  return `${fmt(it.details?.to || it.at)} — ${calfPart}${it.details?.notes? ' • '+it.details.notes:''}`;
+                } else if(it.type==='graduate'){
+                  const who = (it.details?.calfName||'Calf')+' → '+(it.adult?.type==='cow'?'Cow':'Bull');
+                  return `${fmt(it.at)} — Graduated: ${who}`;
+                }
+                return `${fmt(it.at)} — ${it.action||'event'}`;
+              })(),
+              link: (it.type==='calving' && it.calf) ? ('/profile/calf/'+it.calf.id) : (it.type==='graduate' && it.adult) ? (`/profile/${it.adult.type}/${it.adult.id}`) : null,
+            })),
+            ...L.map(c=>({
+              type: 'loss',
+              at: c.birthDate || new Date(),
+              text: `${fmt(c.birthDate)} — Loss: ${(c.name||'Unnamed')} (${cap(c.status||'')})`,
+              link: '/profile/calf/'+c.id,
+            })),
+          ].sort((a,b)=> new Date(b.at) - new Date(a.at));
+          if(!merged.length){ container.innerHTML = '<div style="opacity:.6;font-size:.8rem;">No history recorded</div>'; return; }
+          merged.forEach(it=>{
+            const row=document.createElement('div');
+            row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid #e9ecef;border-radius:8px;padding:8px 10px;';
+            const typeBadge=document.createElement('span'); typeBadge.className='badge '+badgeFor(it.type); typeBadge.style.padding='2px 8px'; typeBadge.style.fontSize='.7rem'; typeBadge.textContent=cap(it.type);
+            const text=document.createElement('div'); text.style.cssText='display:flex;gap:8px;flex-wrap:wrap;font-size:.8rem;'; text.textContent=it.text;
+            row.appendChild(typeBadge); row.appendChild(text);
+            if(it.link){
+              row.style.cursor='pointer';
+              row.addEventListener('click', ()=>{ window.location.href = it.link; });
+              const a=document.createElement('a'); a.href=it.link; a.className='btn muted'; a.style.padding='4px 8px'; a.textContent='View'; row.appendChild(a);
+            }
+            container.appendChild(row);
+          });
+        }).catch(()=>{ container.innerHTML='<div style="opacity:.6;font-size:.8rem;">Failed to load history</div>'; });
+      }
+      // open modal on button click
+      openBtn.addEventListener('click', ()=> { buildModal(); initEnhancements(); });
+    })();
+    // Initialize lineage fetch (was missing, causing perpetual 'Loading lineage...')
+    (function initLineage(){
+      const container=document.getElementById('lineage-vis');
+      if(!container) return;
+      fetch('/lineage/cow/<%= cow._id %>')
+        .then(async r=>{ if(!r.ok){ const t=await r.text(); throw new Error(`HTTP ${r.status}: ${t}`); } return r.json(); })
+        .then(data=> renderLineage(container,data))
+        .catch(err=>{ container.innerHTML=`<div style="padding:10px;color:#dc3545">Failed to load lineage.<br><small>${(err&&err.message)||''}</small></div>`; });
+    })();
+    function renderLineage(container, data){
+      container.innerHTML='';
+      const W=container.clientWidth||700; let H=1100; // will adjust after computing levels
+      container.style.minHeight=H+'px'; container.style.position='relative';
+      const svgNS='http://www.w3.org/2000/svg';
+      const stage=document.createElement('div'); stage.style.cssText='position:absolute;inset:0;transform-origin:0 0;'; container.appendChild(stage);
+      const svg=document.createElementNS(svgNS,'svg'); svg.setAttribute('width',W); svg.setAttribute('height',H); svg.style.cssText='position:absolute;inset:0;pointer-events:auto;'; stage.appendChild(svg);
+      const size={w:150,h:70}; const elemFor={}; const lines=[];
+      const defs=document.createElementNS(svgNS,'defs');
+      const mk=(id,color)=>{ const m=document.createElementNS(svgNS,'marker'); m.setAttribute('id',id); m.setAttribute('markerWidth','10'); m.setAttribute('markerHeight','6'); m.setAttribute('refX','10'); m.setAttribute('refY','3'); m.setAttribute('orient','auto'); m.setAttribute('markerUnits','strokeWidth'); const p=document.createElementNS(svgNS,'path'); p.setAttribute('d','M0,0 L10,3 L0,6 z'); p.setAttribute('fill',color); m.appendChild(p); return m; };
+      defs.appendChild(mk('arr-mother','#74c69d')); defs.appendChild(mk('arr-sire','#b197fc')); defs.appendChild(mk('arr-default','#adb5bd')); svg.appendChild(defs);
+      let scale=0.75, tx=0, ty=0; function applyTransform(){ stage.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+      function colorForNode(n){
+        if(n.type==='cow') return {bg:'#d1e7dd',fg:'#0f5132'};
+        if(n.type==='bull'){
+          if(n.isInsemination) return {bg:'#f3d9fa', fg:'#5f3dc4', border:'#6f42c1'};
+          return {bg:'#e0cffc',fg:'#3d0a91'};
+        }
+        return {bg:'#fff3cd',fg:'#664d03'};
+      }
+      function profilePath(n){ return n.type==='cow'?'/profile/cow/'+n._id: n.type==='bull'?'/profile/bull/'+n._id:'/profile/calf/'+n._id; }
+      const byId={}; (data.nodes||[]).forEach(n=> { byId[String(n._id)] = n; });
+      const selfNode=byId['<%= cow._id %>'];
+      const edgeSet=(data.edges||[]).map(e=> ({...e, from:String(e.from), to:String(e.to)}));
+      function parentEdgesOf(id){ return edgeSet.filter(e=> e.to===id && (e.relation==='mother'||e.relation==='sire')); }
+      function childrenEdgesOf(id){ return edgeSet.filter(e=> e.from===id && e.relation==='offspring'); }
+      const relationMap={}; if(selfNode) relationMap[selfNode._id]='Self';
+      // Build dynamic levels up to 10 generations
+      const maxGen=10; const levels={}; let ancDepth=0, desDepth=0;
+      // Ancestors (negative levels)
+      if(selfNode){
+        let cur=[selfNode._id]; const seen=new Set(cur);
+        for(let d=1; d<=maxGen; d++){
+          const next=[]; const uniq=new Set();
+          cur.forEach(cid=>{
+            parentEdgesOf(cid).forEach(e=>{
+              const pid=e.from; if(seen.has(pid)) return; seen.add(pid);
+              if(!uniq.has(pid)){ uniq.add(pid); next.push(pid);
+                relationMap[pid] = d===1 ? (e.relation==='mother'?'Mother':'Sire') : 'Ancestor';
+              }
+            });
+          });
+          if(!next.length) break; ancDepth=d; levels[-d]=next.map(id=> byId[id]).filter(Boolean); cur=next;
+        }
+      }
+      // Descendants (positive levels)
+      if(selfNode){
+        let cur=[selfNode._id]; const seen=new Set(cur);
+        for(let d=1; d<=maxGen; d++){
+          const next=[]; const uniq=new Set();
+          cur.forEach(cid=>{
+            childrenEdgesOf(cid).forEach(e=>{
+              const kid=e.to; if(seen.has(kid)) return; seen.add(kid);
+              if(!uniq.has(kid)){ uniq.add(kid); next.push(kid);
+                relationMap[kid] = d===1 ? 'Child' : d===2 ? 'Grandchild' : d===3 ? 'Great-Grandchild' : 'Descendant';
+              }
+            });
+          });
+          if(!next.length) break; desDepth=d; levels[d]=next.map(id=> byId[id]).filter(Boolean); cur=next;
+        }
+      }
+      // Partners for immediate children: add the other parent to level 1
+      if(selfNode && (levels[1]||[]).length){
+        const childIds=new Set((levels[1]||[]).map(n=> String(n._id)));
+        const partnerIds=new Set();
+        childIds.forEach(cid=>{
+          const parents=parentEdgesOf(cid);
+          const partner=parents.find(pe=> String(pe.from)!==String(selfNode._id));
+          if(partner) partnerIds.add(String(partner.from));
+        });
+        const partners=[...partnerIds].map(id=> byId[id]).filter(Boolean);
+        partners.forEach(p=>{ if(!relationMap[p._id]) relationMap[p._id]='Partner'; });
+        levels[1] = [...(levels[1]||[]), ...partners.filter(p=> !(levels[1]||[]).some(n=> String(n._id)===String(p._id)))];
+      }
+      // Partners for deeper descendants (levels >=2): find other parent relative to previous level linkage
+      if(desDepth>1){
+        for(let d=2; d<=desDepth; d++){
+          const prevIds=new Set((levels[d-1]||[]).map(n=> String(n._id)));
+          const curNodes=(levels[d]||[]);
+          const partnerIds=new Set();
+          curNodes.forEach(node=>{
+            const cid=String(node._id);
+            const parents=parentEdgesOf(cid);
+            if(!parents||!parents.length) return;
+            const linkParent=parents.find(pe=> prevIds.has(String(pe.from)));
+            if(linkParent){
+              const other=parents.find(pe=> String(pe.from)!==String(linkParent.from));
+              if(other) partnerIds.add(String(other.from));
+            } else if(parents.length===2){
+              partnerIds.add(String(parents[0].from));
+              partnerIds.add(String(parents[1].from));
+            }
+          });
+          const partners=[...partnerIds].map(id=> byId[id]).filter(Boolean);
+          partners.forEach(p=>{ if(!relationMap[p._id]) relationMap[p._id]='Partner'; });
+          levels[d] = [...curNodes, ...partners.filter(p=> !curNodes.some(n=> String(n._id)===String(p._id)))];
+        }
+      }
+      // Siblings at level 0
+      const siblingIds=new Set();
+      if(selfNode){
+        parentEdgesOf(selfNode._id).forEach(pe=>{
+          const p=pe.from; edgeSet.forEach(e=>{ if((e.relation==='mother'||e.relation==='sire') && e.from===p){ const sid=e.to; if(sid!==selfNode._id) siblingIds.add(sid); } });
+        });
+      }
+      const siblings=[...siblingIds].map(id=> byId[id]).filter(Boolean);
+      function createNode(n,x,y){ const el=document.createElement('div'); const c=colorForNode(n); el.style.cssText=`position:absolute;left:${x}px;top:${y}px;width:${size.w}px;height:${size.h}px;border-radius:14px;background:${c.bg};color:${c.fg};display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font-weight:700;cursor:grab;user-select:none;border:1px solid ${c.border||'rgba(0,0,0,.06)'};box-shadow:0 3px 8px rgba(0,0,0,.04);padding:16px 12px 10px;gap:2px;transition:box-shadow .12s, transform .12s;`;
+        const name=document.createElement('div'); name.textContent=n.label; name.style.cssText='font-weight:700;font-size:.85rem;'; el.appendChild(name);
+        const meta=document.createElement('div'); meta.textContent=n.number?(`#${n.number}`):n.type; meta.style.cssText='font-weight:600;font-size:.7rem;opacity:.7;'; el.appendChild(meta);
+        if(selfNode && n._id===selfNode._id){ el.style.borderColor='#0d6efd'; el.style.boxShadow='0 6px 16px rgba(13,110,253,.15)'; }
+        if(n.type==='bull' && n.isInsemination){ const ai=document.createElement('div'); ai.textContent='AI'; ai.style.cssText='position:absolute;right:12px;top:-10px;background:#6f42c1;color:#fff;padding:2px 6px;border-radius:999px;font-size:.55rem;letter-spacing:.5px;opacity:.95;box-shadow:0 2px 4px rgba(0,0,0,.25);pointer-events:none;'; el.appendChild(ai); }
+        const rel=relationMap[n._id]; if(rel){ const b=document.createElement('div'); b.textContent=rel; b.style.cssText='position:absolute;left:12px;top:-10px;background:#212529;color:#fff;padding:2px 8px;border-radius:999px;font-size:.55rem;letter-spacing:.5px;opacity:.9;box-shadow:0 2px 4px rgba(0,0,0,.25);pointer-events:none;'; el.appendChild(b);}        
+        const tip=document.createElement('div'); tip.style.cssText='position:absolute;pointer-events:none;background:#212529;color:#fff;padding:6px 8px;border-radius:6px;font-size:.65rem;line-height:1.2;opacity:0;transform:translate(-50%,-8px);transition:opacity .15s;z-index:1000;'; tip.innerHTML=`<strong>${n.label}</strong><br>${n.type}${n.number?('<br>#'+n.number):''}${n.race?('<br>'+n.race):''}${n.dob?('<br>DOB: '+new Date(n.dob).toLocaleDateString()):''}`; stage.appendChild(tip); el.addEventListener('mouseenter',()=>{ const r=el.getBoundingClientRect(); const cR=container.getBoundingClientRect(); const lx=((r.left-cR.left - tx)/scale + (r.width/2)/scale); const ly=((r.top-cR.top - ty)/scale - 4/scale); tip.style.left=lx+'px'; tip.style.top=ly+'px'; tip.style.opacity='1'; el.style.boxShadow='0 8px 18px rgba(0,0,0,.12)'; el.style.transform='translateY(-2px)'; }); el.addEventListener('mouseleave',()=>{ tip.style.opacity='0'; el.style.boxShadow='0 3px 8px rgba(0,0,0,.04)'; el.style.transform='none'; });
+        stage.appendChild(el); elemFor[String(n._id)]=el; enableDrag(el); }
+      function centerX(x){ return x - size.w/2; } function centerY(y){ return y - size.h/2; }
+      let layoutMode = window.__cowLayoutMode || 'tree';
+      function placeRow(nodes,y){ if(!nodes.length) return; const span=nodes.length+1; nodes.forEach((n,i)=>{ const x=(W/span)*(i+1); createNode(n, centerX(x), centerY(y)); }); }
+      function layoutDynamic(){
+        const gapY=90; const startY=20; const minLevel=-ancDepth; const maxLevel=desDepth;
+        // compute dynamic height
+        const levelsCount = (ancDepth + desDepth + 1);
+        H = Math.max(300, startY + (levelsCount-1)*gapY + 100);
+        svg.setAttribute('height', H);
+        container.style.minHeight = H + 'px';
+        // level 0 includes self + siblings
+        levels[0] = [selfNode, ...siblings.filter(n=> n && n._id!==selfNode._id)];
+        for(let lvl=minLevel; lvl<=maxLevel; lvl++){
+          const row=(levels[lvl]||[]).filter(Boolean);
+          const y=startY + (lvl + ancDepth)*gapY;
+          placeRow(row,y);
+        }
+      }
+      layoutDynamic();
+      (data.edges||[]).forEach(e=>{ const path=document.createElementNS(svgNS,'path'); path.setAttribute('fill','none'); path.setAttribute('stroke','#adb5bd'); path.setAttribute('stroke-width','2.5'); path.setAttribute('stroke-linecap','round'); path.style.cursor='pointer'; path.style.pointerEvents='stroke'; svg.appendChild(path); lines.push({e:{...e, from:String(e.from), to:String(e.to)}, path}); });
+      function anchorTop(el){ const r=el.getBoundingClientRect(); const cr=container.getBoundingClientRect(); return {x:(r.left-cr.left - tx)/scale + (r.width/2)/scale, y:(r.top-cr.top - ty)/scale}; }
+      function anchorBottom(el){ const r=el.getBoundingClientRect(); const cr=container.getBoundingClientRect(); return {x:(r.left-cr.left - tx)/scale + (r.width/2)/scale, y:(r.top-cr.top - ty)/scale + (r.height)/scale}; }
+      function colorForRelation(rel){ if(rel==='mother') return '#74c69d'; if(rel==='sire') return '#b197fc'; return '#adb5bd'; }
+      function markerForRelation(rel){ if(rel==='mother') return 'url(#arr-mother)'; if(rel==='sire') return 'url(#arr-sire)'; return 'url(#arr-default)'; }
+      function updateLines(){ lines.forEach(obj=>{ const from=elemFor[String(obj.e.from)]; const to=elemFor[String(obj.e.to)]; if(!from||!to) return; const p1=anchorBottom(from); const p2=anchorTop(to); const dy=Math.max(16, Math.abs(p2.y-p1.y)*0.28); const d=`M ${p1.x} ${p1.y} C ${p1.x} ${p1.y+dy}, ${p2.x} ${p2.y-dy}, ${p2.x} ${p2.y}`; obj.path.setAttribute('d',d); const col=colorForRelation(obj.e.relation); obj.path.setAttribute('stroke',col); obj.path.setAttribute('stroke-width','2'); obj.path.setAttribute('marker-end', markerForRelation(obj.e.relation)); }); attachEdgeClicks(); }
+      let activePop=null; function clearPop(){ if(activePop&&activePop.parentNode) activePop.parentNode.removeChild(activePop); activePop=null; }
+      function attachEdgeClicks(){
+        lines.forEach((obj) => {
+          if (obj.bound) return;
+          obj.bound = true;
+          obj.path.addEventListener('click', (ev) => {
+            clearPop();
+            const L = obj.path.getTotalLength();
+            const mid = obj.path.getPointAtLength(L / 2);
+            // Add missing logic here
+          });
+        });
+      }
+      window.addEventListener('click',()=> clearPop());
+      function enableDrag(el){ let dragging=false,ox=0,oy=0; el.addEventListener('pointerdown',ev=>{ dragging=true; el.setPointerCapture(ev.pointerId); el.style.cursor='grabbing'; ox=ev.offsetX; oy=ev.offsetY; }); el.addEventListener('pointerup',ev=>{ dragging=false; el.releasePointerCapture(ev.pointerId); el.style.cursor='grab'; }); el.addEventListener('pointermove',ev=>{ if(!dragging) return; const rect=container.getBoundingClientRect(); const x=(ev.clientX-rect.left - tx)/scale - (ox/scale); const y=(ev.clientY-rect.top - ty)/scale - (oy/scale); el.style.left=x+'px'; el.style.top=y+'px'; updateLines(); }); }
+      updateLines(); window.addEventListener('resize',()=> setTimeout(()=>{ applyTransform(); updateLines(); },120));
+      // Zoom / pan
+      container.addEventListener('wheel',ev=>{ ev.preventDefault(); const rect=container.getBoundingClientRect(); const mx=ev.clientX-rect.left; const my=ev.clientY-rect.top; const old=scale; const factor=ev.deltaY>0?0.9:1.12; scale=Math.max(0.15,Math.min(2.2,scale*factor)); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); });
+      let panning=false,startX=0,startY=0; container.addEventListener('pointerdown',ev=>{ if(ev.target===container){ panning=true; startX=ev.clientX - tx; startY=ev.clientY - ty; } }); container.addEventListener('pointerup',()=> panning=false); container.addEventListener('pointerleave',()=> panning=false); container.addEventListener('pointermove',ev=>{ if(!panning) return; tx=ev.clientX - startX; ty=ev.clientY - startY; applyTransform(); updateLines(); });
+      document.getElementById('zoomInBtn').onclick=()=>{ const rect=container.getBoundingClientRect(); const mx=rect.width/2; const my=rect.height/2; const old=scale; scale=Math.min(2.2,scale*1.15); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); };
+      document.getElementById('zoomOutBtn').onclick=()=>{ const rect=container.getBoundingClientRect(); const mx=rect.width/2; const my=rect.height/2; const old=scale; scale=Math.max(0.15,scale*0.85); tx=mx - ((mx - tx)/old)*scale; ty=my - ((my - ty)/old)*scale; applyTransform(); updateLines(); };
+      function fitToView(extra=0.92){ const els=Object.values(elemFor); if(!els.length) return; let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9; els.forEach(el=>{ const x=parseFloat(el.style.left)||0; const y=parseFloat(el.style.top)||0; minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x+size.w); maxY=Math.max(maxY,y+size.h); }); const pad=(window.innerWidth<640)?30:60; const boxW=maxX-minX+pad*2; const boxH=maxY-minY+pad*2; const s=Math.min(container.clientWidth/boxW, H/boxH)*extra; scale=Math.max(0.15,Math.min(2.2,s)); tx=-minX*scale + (container.clientWidth - (maxX-minX)*scale)/2; ty=-minY*scale + (H - (maxY-minY)*scale)/2; applyTransform(); updateLines(); }
+      document.getElementById('fitBtn').onclick=()=> fitToView(); fitToView();
+      const arrangeBtn=document.getElementById('arrangeLineage'); if(arrangeBtn){ arrangeBtn.onclick=()=>{ window.__cowLayoutMode=layoutMode; renderLineage(container,data); } }
+      const layoutToggle=document.getElementById('layoutToggle'); if(layoutToggle){ layoutToggle.onclick=()=>{ layoutMode = layoutMode==='tree'?'cluster':'tree'; layoutToggle.textContent='Layout: '+(layoutMode==='tree'?'Tree':'Cluster'); window.__cowLayoutMode=layoutMode; renderLineage(container,data); }; }
+    }
+    // Profile navigation
+    (function initProfileNav(){
+      const prevBtn=document.getElementById('prevProfile');
+      const nextBtn=document.getElementById('nextProfile');
+      const registryBtn=document.getElementById('goRegistry');
+      registryBtn.onclick = () => {
+        window.location.href = `/cattle-registry?focus=cow:<%= cow._id %>&openInfo=true`;
+      };
+      fetch('/profile/nav/cow/<%= cow._id %>')
+        .then(r=>r.json())
+        .then(nav=>{
+          if(nav.previous){ prevBtn.disabled=false; prevBtn.onclick=()=>{ window.location.href=`/profile/${nav.previous.type}/${nav.previous.id}`; }; prevBtn.textContent=`◀ ${nav.previous.label.slice(0, 10)}`; } else prevBtn.disabled=true;
+          if(nav.next){ nextBtn.disabled=false; nextBtn.onclick=()=>{ window.location.href=`/profile/${nav.next.type}/${nav.next.id}`; }; nextBtn.textContent=nav.next.label.slice(0,14)+' ▶'; } else nextBtn.disabled=true;
+        })
+        .catch(()=>{
+          prevBtn.disabled = true;
+          nextBtn.disabled = true;
+        });
+    })();
+  </script>
+  <script>
+    // Inline edit + photo upload (parallels bull/calf implementations)
+    const eb=document.getElementById('editBtn');
+    const sb=document.getElementById('saveBtn');
+    const cb=document.getElementById('cancelBtn');
+    const kv=document.getElementById('view-kv');
+    const form=document.getElementById('edit-form');
+    const changePhotoBtn=document.getElementById('changePhotoBtn');
+    const pfpInput=document.getElementById('pfpInput');
+    const avatar=document.getElementById('avatar');
+
+    if(eb){
+      eb.addEventListener('click',()=>{kv.style.display='none';form.style.display='grid';eb.style.display='none';sb.style.display='inline-block';cb.style.display='inline-block';});
+    }
+    if(cb){
+      cb.addEventListener('click',()=>{kv.style.display='grid';form.style.display='none';if(eb) eb.style.display='inline-block';if(sb) sb.style.display='none';if(cb) cb.style.display='none';});
+    }
+    if(sb){
+      sb.addEventListener('click', async ()=>{
+        const data=Object.fromEntries(new FormData(form).entries());
+        const id=data.id; delete data.id; const type=data.type;
+        try {
+          const r=await fetch('/edit-cattle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,type,updates:data})});
+          if(!r.ok){ throw new Error(await r.text() || 'Save failed'); }
+          const u=await r.json();
+          document.getElementById('v-cowNumber').textContent=u.cowNumber||'N/A';
+          document.getElementById('v-cowName').textContent=u.cowName||'N/A';
+          document.getElementById('v-race').textContent=u.race||'N/A';
+          document.getElementById('v-dob').textContent=u.dob? new Date(u.dob).toLocaleDateString():'N/A';
+          document.getElementById('v-notes').textContent=u.notes||'—';
+          if(cb) cb.click(); showToast('Saved');
+        } catch(e){ showToast('Save failed: '+e.message); }
+      });
+    }
+
+    changePhotoBtn.addEventListener('click',()=> pfpInput.click());
+    pfpInput.addEventListener('change', async ()=>{
+      const file=pfpInput.files[0]; if(!file) return;
+      const fd=new FormData(); fd.append('image', file);
+      try {
+        const resp=await fetch('/profile/cow/<%= cow._id %>/upload-image',{method:'POST',body:fd});
+        if(!resp.ok){ throw new Error(await resp.text() || 'Upload failed'); }
+        const data=await resp.json();
+        avatar.innerHTML = `<img src="${data.url}?t=${Date.now()}" alt="Profile" style="width:100%;height:100%;object-fit:cover;" />`;
+        showToast('Photo updated');
+      } catch(e){ showToast('Upload failed: '+e.message); }
+    });
+
+    // Reproduction dynamic actions
+    // Custom confirmation helper (replaces browser confirm)
+    function showConfirm(message, options){
+      return new Promise((resolve)=>{
+        const overlay = document.getElementById('confirmOverlay');
+        const titleEl = document.getElementById('confirmTitle');
+        const msgEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+        titleEl.textContent = (options && options.title) || 'Confirm Action';
+        msgEl.innerHTML = message;
+        overlay.style.display='flex';
+        function cleanup(){ overlay.style.display='none'; okBtn.onclick=null; cancelBtn.onclick=null; }
+        okBtn.onclick=()=>{ cleanup(); resolve(true); };
+        cancelBtn.onclick=()=>{ cleanup(); resolve(false); };
+        overlay.onclick=(e)=>{ if(e.target===overlay){ cleanup(); resolve(false); } };
+      });
+    }
+
+    // Reproduction actions (sanitized version) -- moved to its own script tag for linter clarity
+  </script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function initReproduction(){
+      const area = document.getElementById('repro-actions');
+      if(!area) return;
+      const dataEl = document.getElementById('reproData');
+      const overrideActive = dataEl && dataEl.dataset.override === '1';
+      let repro = {};
+      try {
+        if(dataEl){
+          const raw = dataEl.dataset.json || '{}';
+          const decoded = raw.replace(/&quot;/g, '"');
+          repro = JSON.parse(decoded);
+        }
+      } catch(_){ }
+      const cowId = '<%= cow._id %>';
+      const cowRace = '<%- (cow.race || "") %>';
+      const fmt = d => d? new Date(d).toISOString().slice(0,10):'';
+      const add = html => { const wrap=document.createElement('div'); wrap.innerHTML=html; area.appendChild(wrap); };
+      // Informational banner for non-override users
+      if(!overrideActive){ add('<div style="font-size:.65rem;color:#6c757d;max-width:360px;">Standard actions available. Editing/deleting requires admin override.</div>'); }
+
+      // Status-driven UI
+      if(repro.status==='Open'){
+        if(repro.latest && repro.latest.failed){
+          if(repro.canAddInseminationNow){
+            add('<div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">\n<label style="font-size:.7rem;font-weight:600;">Retry Date</label>\n<input type="date" id="retryDateOpen" value="'+fmt(new Date())+'" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.75rem;" />\n<button id="retryInsemBtnOpen" class="btn muted" type="button">Add Retry Attempt</button></div>');
+          } else {
+            add('<div style="font-size:.65rem;color:#6c757d;max-width:260px;">Retry not yet recommended. Earliest: '+(repro.nextInseminationEarliest? new Date(repro.nextInseminationEarliest).toLocaleDateString():'N/A')+'</div>');
+          }
+        } else if(repro.canAddInseminationNow){
+          add('<div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">\n<label style="font-size:.7rem;font-weight:600;">Insemination Date</label>\n<input type="date" id="insemDate" value="'+fmt(new Date())+'" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.75rem;" />\n<button id="addInsemBtn" class="btn primary" type="button">Add Attempt</button></div>');
+        } else {
+          add('<div style="font-size:.65rem;color:#6c757d;max-width:260px;">Postpartum threshold not reached. Earliest: '+(repro.nextInseminationEarliest? new Date(repro.nextInseminationEarliest).toLocaleDateString():'N/A')+'</div>');
+        }
+      } else if(repro.status==='Pending'){
+        // Show Confirm/Fail only when pregnancy check threshold is met
+        const nowOk = (function(){
+          try{
+            if(typeof repro.canConfirmNow === 'boolean') return repro.canConfirmNow;
+            if(repro.retryWindowEnd){ return Date.now() >= new Date(repro.retryWindowEnd).getTime(); }
+            return false;
+          }catch(_){ return false; }
+        })();
+        if(nowOk){
+          add('<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">\n<button id="confirmPregBtn" class="btn primary" type="button">Confirm Pregnancy</button>\n<button id="failPregBtn" class="btn muted" type="button" style="background:#dc3545;">Mark Failed</button>\n</div>');
+        } else {
+          add('<div style="font-size:.65rem;color:#6c757d;max-width:320px;">Pregnancy check threshold not met yet. Check date: '+(repro.retryWindowEnd? new Date(repro.retryWindowEnd).toLocaleDateString():'N/A')+'</div>');
+        }
+        // Retry is only offered after an attempt is marked failed (handled in Open status when latest.failed is true)
+        add('<div style="font-size:.65rem;color:#6c757d;max-width:320px;">Await pregnancy check date to confirm/deny. Check: '+(repro.retryWindowEnd? new Date(repro.retryWindowEnd).toLocaleDateString():'N/A')+'</div>');
+      } else if(repro.status==='Pregnant'){
+        if(overrideActive){
+          add('<div style="display:flex;flex-direction:column;gap:6px;max-width:220px;">\n<label style="font-size:.7rem;font-weight:600;">Actual Calving Date</label>\n<input type="date" id="calvingDate" value="'+fmt(new Date())+'" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.75rem;" />\n<div style="display:flex;gap:6px;flex-wrap:wrap;">\n<button id="recordCalvingBtn" class="btn primary" type="button">Record Calving</button>'+(repro.latest?'<button id="undoPregBtn" class="btn muted" type="button" style="background:#dc3545;">Undo Pregnancy</button>':'')+'</div></div>');
+        }
+      }
+
+      // Wire up actions
+      const latestId = repro.latest ? repro.latest._id : null;
+      async function postJSON(url, body){ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}); if(!r.ok){ throw new Error(await r.text()||'Request failed'); } return r.json(); }
+      const addBtn=document.getElementById('addInsemBtn'); if(addBtn){ addBtn.onclick= async ()=>{ if(!(await showConfirm('Add new insemination attempt?',{title:'Add Insemination'}))) return; try{ const date=document.getElementById('insemDate').value; await postJSON('/cow/'+cowId+'/insemination',{date}); showToast('Attempt added'); setTimeout(()=>location.reload(),700); }catch(e){ showToast('Add failed: '+e.message); } }; }
+      // No retry in Pending; it becomes available after marking failed (Open + latest.failed)
+      const retryBtnOpen=document.getElementById('retryInsemBtnOpen'); if(retryBtnOpen){ retryBtnOpen.onclick= async ()=>{ if(!(await showConfirm('Add retry insemination attempt?',{title:'Retry Insemination'}))) return; try{ const date=document.getElementById('retryDateOpen').value; await postJSON('/cow/'+cowId+'/insemination',{date}); showToast('Retry added'); setTimeout(()=>location.reload(),700); }catch(e){ showToast('Retry failed: '+e.message); } }; }
+      const confirmBtn=document.getElementById('confirmPregBtn'); if(confirmBtn && latestId){ confirmBtn.onclick= async ()=>{ if(!(await showConfirm('Confirm pregnancy for the latest attempt?<br><small>Schedule cycle dates.</small>',{title:'Confirm Pregnancy'}))) return; try{ await postJSON('/cow/'+cowId+'/insemination/'+latestId+'/confirm',{}); showToast('Pregnancy confirmed'); setTimeout(()=>location.reload(),700); }catch(e){ showToast('Confirm failed: '+e.message); } }; }
+      const failBtn=document.getElementById('failPregBtn'); if(failBtn && latestId){ failBtn.onclick= async ()=>{ if(!(await showConfirm('Mark latest attempt as failed?',{title:'Mark Failed'}))) return; try{ await postJSON('/cow/'+cowId+'/insemination/'+latestId+'/fail',{}); showToast('Attempt marked failed'); setTimeout(()=>location.reload(),700); }catch(e){ showToast('Fail action error: '+e.message); } }; }
+      const calvingBtn=document.getElementById('recordCalvingBtn'); if(calvingBtn){ calvingBtn.onclick= async ()=>{ if(!(await showConfirm('Record calving and reset cycle? You can add birth notes and calf details next.',{title:'Record Calving'}))) return; try{ const date=document.getElementById('calvingDate').value; // Build a quick overlay form for birth commentary + calf profile
+        const wrap=document.createElement('div'); wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:20px;';
+        const box=document.createElement('div'); box.style.cssText='background:#fff;border-radius:14px;max-width:640px;width:100%;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 6px 24px rgba(0,0,0,.15)';
+        box.innerHTML = '<h3 style="margin:0;font-size:1.1rem;color:#0f5132;">Birth Details</h3>'+
+          '<div style="display:flex;flex-direction:column;gap:6px;">'+
+            '<label style="font-size:.78rem;font-weight:600;">Birth Commentary</label>'+
+            '<textarea id="calvingNotesInput" rows="3" placeholder="Notes about the birth" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;resize:vertical;"></textarea>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">'+
+            '<div><label id="lblCalfName" style="font-size:.78rem;font-weight:600;">*Calf Name</label><input type="text" id="calfNameInput" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;" /></div>'+
+            '<div><label id="lblCalfBreed" style="font-size:.78rem;font-weight:600;">*Calf Breed</label><input type="text" id="calfBreedInput" value="'+cowRace+'" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;" /></div>'+
+            '<div><label id="lblCalfDob" style="font-size:.78rem;font-weight:600;">*DOB</label><input type="date" id="calfDobInput" value="'+fmt(new Date())+'" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;" /></div>'+
+            '<div><label id="lblCalfGender" style="font-size:.78rem;font-weight:600;">*Gender</label><select id="calfGenderSelect" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option></select></div>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">'+
+            '<div><label style="font-size:.78rem;font-weight:600;">Mother Cow #</label><input type="text" id="birthMotherNo" value="'+'<%- (cow.cowNumber || "") %>'+'" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;" /><div style="font-size:.74rem;color:#6c757d;margin-top:4px;">Enter number to auto-fill</div><div id="birthMotherPreview" style="margin-top:2px;font-size:.74rem;color:#6c757d;"></div></div>'+
+            '<div><label style="font-size:.78rem;font-weight:600;">Sire Bull #</label><input type="text" id="birthSireNo" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;" /><div style="font-size:.74rem;color:#6c757d;margin-top:4px;">Enter number to auto-fill</div><div id="birthSirePreview" style="margin-top:2px;font-size:.74rem;color:#6c757d;"></div></div>'+
+          '</div>'+
+          '<div style="display:flex;flex-direction:column;gap:6px;">'+
+            '<label style="font-size:.78rem;font-weight:600;">Calf Notes</label>'+
+            '<textarea id="calfGeneralNotes" rows="3" placeholder="General notes about the calf" style="padding:8px 10px;border:1px solid #ced4da;border-radius:8px;font-size:.85rem;resize:vertical;"></textarea>'+
+          '</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+
+            '<button type="button" id="birthSpecialBtn" class="btn muted" style="padding:6px 10px;">Other / Special</button>'+
+            '<div id="birthSpecialArea" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">'+
+              '<label style="font-size:.75rem;font-weight:600;margin-right:6px;">Outcome</label>'+
+              '<label style="font-size:.75rem;"><input type="radio" name="birthSpecialType" value="none" /> None</label>'+
+              '<label style="font-size:.75rem;"><input type="radio" name="birthSpecialType" value="dm" /> Died/Miscarriage</label>'+
+              '<select id="birthDmSelect" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;display:none;">'+
+                '<option value="died">Died</option><option value="miscarriage">Miscarriage</option>'+
+              '</select>'+
+              '<label style="font-size:.75rem;"><input type="radio" name="birthSpecialType" value="other" /> Other</label>'+
+              '<input type="text" id="birthOtherText" placeholder="Describe other" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;display:none;" />'+
+              '<textarea id="birthSpecialNotes" rows="2" placeholder="Notes on outcome" style="padding:6px 8px;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;resize:vertical;display:none;"></textarea>'+
+            '</div>'+
+          '</div>'+
+          '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
+            '<button class="btn muted" id="cancelCalvingSubmit" type="button">Cancel</button>'+
+            '<button class="btn primary" id="confirmCalvingSubmit" type="button">Save & Finish</button>'+
+          '</div>';
+        wrap.appendChild(box); document.body.appendChild(wrap);
+        box.querySelector('#cancelCalvingSubmit').onclick = ()=> wrap.remove();
+        // special outcome wiring
+        const birthSpecialBtn = box.querySelector('#birthSpecialBtn');
+        const birthSpecialArea = box.querySelector('#birthSpecialArea');
+        const birthDmSelect = box.querySelector('#birthDmSelect');
+        const birthOtherText = box.querySelector('#birthOtherText');
+        const birthSpecialNotes = box.querySelector('#birthSpecialNotes');
+        const lblCalfName = box.querySelector('#lblCalfName');
+        const lblCalfBreed = box.querySelector('#lblCalfBreed');
+        const lblCalfDob = box.querySelector('#lblCalfDob');
+        const lblCalfGender = box.querySelector('#lblCalfGender');
+        // Parent previews
+        const birthMotherNo = box.querySelector('#birthMotherNo');
+        const birthSireNo = box.querySelector('#birthSireNo');
+        const birthMotherPreview = box.querySelector('#birthMotherPreview');
+        const birthSirePreview = box.querySelector('#birthSirePreview');
+        async function birthLookup(url, previewEl){
+          const num = url.split('/').pop(); if(!num){ previewEl.textContent=''; return; }
+          try { const r = await fetch(url); if(!r.ok){ previewEl.textContent='Not found'; return; } const data = await r.json(); const item = data.cow || data.bull; const name = item.cowName || item.bullName || ''; const breed = item.race || ''; previewEl.textContent = (name||breed) ? (name + (breed? ' • '+breed:'')) : 'Found'; } catch(_){ previewEl.textContent=''; }
+        }
+        birthMotherNo && (birthMotherNo.onblur = ()=>{ const v = birthMotherNo.value.trim(); if(v){ birthLookup('/lookup/cow/'+encodeURIComponent(v), birthMotherPreview); } else { birthMotherPreview.textContent=''; } });
+        birthSireNo && (birthSireNo.onblur = ()=>{ const v = birthSireNo.value.trim(); if(v){ birthLookup('/lookup/bull/'+encodeURIComponent(v), birthSirePreview); } else { birthSirePreview.textContent=''; } });
+        if(birthMotherNo && birthMotherNo.value.trim()){ birthMotherNo.dispatchEvent(new Event('blur')); }
+        let birthStatus = null; // 'died' or 'miscarriage' when chosen
+        let birthSpecialType = null; // 'dm' or 'other'
+        function updateRequiredUI(){
+          const requireCore = birthSpecialType !== 'dm';
+          const setLabel = (el, base)=>{ if(!el) return; el.textContent = (requireCore? '*':'') + base; };
+          setLabel(lblCalfName,'Calf Name'); setLabel(lblCalfBreed,'Calf Breed'); setLabel(lblCalfDob,'DOB'); setLabel(lblCalfGender,'Gender');
+        }
+        birthSpecialBtn.onclick = ()=>{
+          const open = (birthSpecialArea.style.display==='none' || !birthSpecialArea.style.display);
+          birthSpecialArea.style.display = open ? 'flex' : 'none';
+          if(!open){ birthSpecialType=null; birthStatus=null; birthDmSelect.style.display='none'; birthOtherText.style.display='none'; birthSpecialNotes.style.display='none'; updateRequiredUI(); }
+        };
+        box.querySelectorAll('input[name="birthSpecialType"]').forEach(r=>{ r.onchange = ()=>{
+          birthSpecialType = r.value;
+          if(birthSpecialType==='none'){ birthDmSelect.style.display='none'; birthOtherText.style.display='none'; birthSpecialNotes.style.display='none'; birthStatus = null; }
+          else if(birthSpecialType==='dm'){ birthDmSelect.style.display='inline-block'; birthOtherText.style.display='none'; birthSpecialNotes.style.display='block'; birthStatus = birthDmSelect.value; }
+          else { birthDmSelect.style.display='none'; birthOtherText.style.display='inline-block'; birthSpecialNotes.style.display='block'; birthStatus = null; }
+          updateRequiredUI();
+        }; });
+        birthDmSelect.onchange = ()=>{ birthStatus = birthDmSelect.value; };
+        box.querySelector('#confirmCalvingSubmit').onclick = async ()=>{
+          const notes = (document.getElementById('calvingNotesInput')||{value:''}).value;
+          const calfName = (document.getElementById('calfNameInput')||{value:''}).value;
+          const calfBreed = (document.getElementById('calfBreedInput')||{value:''}).value;
+          const birthDate = (document.getElementById('calfDobInput')||{value:''}).value;
+          const gender = (document.getElementById('calfGenderSelect')||{value:''}).value;
+          const calfGeneralNotes = (document.getElementById('calfGeneralNotes')||{value:''}).value;
+          const requireCore = birthSpecialType !== 'dm';
+          if(requireCore && (!calfName || !calfBreed || !birthDate || !gender)){ showToast('Fill all required fields'); return; }
+          let sendNotes = notes || '';
+          let status = birthStatus ? birthStatus : 'alive';
+          if(birthSpecialType==='other'){
+            const otherText = (birthOtherText && birthOtherText.value.trim()) || '';
+            if(otherText){ sendNotes = (sendNotes? sendNotes+"\n" : '') + 'Other: '+otherText; }
+            const extra = (birthSpecialNotes && birthSpecialNotes.value.trim()) || '';
+            if(extra){ sendNotes = (sendNotes? sendNotes+"\n" : '') + 'Outcome Notes: '+extra; }
+          } else if (birthSpecialType==='dm'){
+            const extra = (birthSpecialNotes && birthSpecialNotes.value.trim()) || '';
+            const label = birthStatus ? (birthStatus.charAt(0).toUpperCase()+birthStatus.slice(1)) : '';
+            if(label){ sendNotes = (sendNotes? sendNotes+"\n" : '') + 'Outcome: '+label; }
+            if(extra){ sendNotes = (sendNotes? sendNotes+"\n" : '') + 'Outcome Notes: '+extra; }
+          }
+          try{
+            const motherCowNumber = (birthMotherNo && birthMotherNo.value.trim()) || '';
+            const sireBullNumber = (birthSireNo && birthSireNo.value.trim()) || '';
+            const resp = await postJSON('/cow/'+cowId+'/calving',{date, birthDate, notes: sendNotes, calfName, calfBreed, gender, status, motherCowNumber, sireBullNumber, calfGeneralNotes});
+            const aid = resp && resp.auditId; wrap.remove(); showToast('Calving recorded; Calf profile created'); setTimeout(()=>location.reload(), aid? 1800:700);
+          }catch(e){ showToast('Save failed: '+e.message); }
+        };
+      }catch(e){ showToast('Save failed: '+e.message); } }; }
+      const undoBtn=document.getElementById('undoPregBtn'); if(undoBtn && latestId){ undoBtn.onclick= async ()=>{ if(!(await showConfirm('Undo pregnancy confirmation?',{title:'Undo Pregnancy'}))) return; try{ await postJSON('/cow/'+cowId+'/insemination/'+latestId+'/unconfirm',{}); showToast('Pregnancy undone'); setTimeout(()=>location.reload(),700); }catch(e){ showToast('Undo failed: '+e.message); } }; }
+
+  });
+  </script>
+  <script>
+  // Override login/logout & forced actions
+  document.addEventListener('DOMContentLoaded', function initOverride(){
+      const cowId = '<%= cow._id %>';
+      const loginBtn = document.getElementById('overrideLoginBtn');
+      const pwdInput = document.getElementById('overridePassword');
+      const logoutBtn = document.getElementById('overrideLogoutBtn');
+      const forceBtn = document.getElementById('forceInsemBtn');
+      const forceDateInput = document.getElementById('forceInsemDate');
+      const overrideCalvingInput = document.getElementById('overrideCalvingDate');
+      const overrideCalvingBtn = document.getElementById('overrideSetCalving');
+      const clearCalvingBtn = document.getElementById('clearCalvingBtn');
+      const deleteLatestBtn = document.getElementById('deleteLatestInsemBtn');
+      const clearAllBtn = document.getElementById('clearAllInsemBtn');
+      const openAuditBtn = document.getElementById('openAuditLog');
+      let repro = {}; try { const el = document.getElementById('reproData'); repro = el ? JSON.parse(el.dataset.json || '{}') : {}; } catch(_){ }
+
+      async function post(url, body){
+        const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+        if(!r.ok){
+          const txt = await r.text();
+          const err = new Error(txt || 'Request failed');
+          err.status = r.status;
+          throw err;
+        }
+        return r.json();
+      }
+      async function del(url){
+        const r=await fetch(url,{method:'DELETE'});
+        if(!r.ok) throw new Error(await r.text()||'Request failed');
+        return r.json();
+      }
+      if(loginBtn){
+        loginBtn.addEventListener('click', async ()=>{
+          try {
+            const pw = pwdInput.value.trim();
+            if(!pw) { showToast('Enter password'); return; }
+            console.log('[override] login attempt');
+            await post('/override/login',{password: pw});
+            showToast('Override unlocked');
+            // Prevent the auto-logout handler from firing during this one reload
+            try { sessionStorage.setItem('overrideSkipLogoutOnce','1'); } catch(_){ }
+            setTimeout(()=> location.reload(), 600);
+          } catch(e){
+            console.error('[override] login error', e);
+            if(e.status===400){ showToast('Password required'); return; }
+            showToast(e.status===401 ? 'Invalid password' : 'Login failed');
+          }
+        });
+      }
+      if(logoutBtn){
+        logoutBtn.addEventListener('click', async ()=>{
+          try { await post('/override/logout',{}); showToast('Override locked'); setTimeout(()=> location.reload(), 600); } catch(e){ showToast('Logout failed'); }
+        });
+      }
+      // Periodic status check (helps diagnose cookie/session issues)
+      setTimeout(async ()=>{
+        try {
+          const r = await fetch('/override/status');
+          if(r.ok){
+            const data = await r.json();
+            console.log('[override] status', data);
+          }
+        } catch(_){ }
+      }, 1500);
+      function reloadKeepingOverride(delayMs){
+        try { sessionStorage.setItem('overrideSkipLogoutOnce','1'); } catch(_){ }
+        setTimeout(()=> location.reload(), delayMs||600);
+      }
+      if(forceBtn){
+        forceBtn.addEventListener('click', async ()=>{
+          console.log('[override] force attempt click');
+          try {
+            const date = forceDateInput.value;
+            if(!date){ showToast('Select date first'); return; }
+            console.log('[override] POST /cow/'+cowId+'/insemination forced', date);
+            const resp = await fetch(`/cow/${cowId}/insemination`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date, forced:true})});
+            const txt = await resp.text();
+            if(!resp.ok){ console.error('[override] force attempt response error', resp.status, txt); showToast('Force failed: '+(txt||('HTTP '+resp.status))); return; }
+            console.log('[override] force attempt success', txt);
+            showToast('Forced attempt added');
+            reloadKeepingOverride(700);
+          } catch(e){
+            console.error('[override] force attempt error', e);
+            showToast('Force failed: '+(e && e.message ? e.message : 'request error'));
+          }
+        });
+      }
+      if(overrideCalvingBtn){
+        overrideCalvingBtn.addEventListener('click', async ()=>{
+          try {
+            const date = overrideCalvingInput.value;
+            const r = await post(`/cow/${cowId}/calving`,{date});
+            const aid = r && r.auditId;
+            showToast('Calving updated');
+            reloadKeepingOverride(aid? 1800:700);
+          } catch(e){ showToast('Calving update failed'); }
+        });
+      }
+      if(clearCalvingBtn){
+        clearCalvingBtn.addEventListener('click', async ()=>{
+          if(!(await showConfirm('Clear last calving date for this cow?',{title:'Clear Calving Date'}))) return;
+          try {
+            const r = await del(`/cow/${cowId}/calving`);
+            const aid = r && r.auditId;
+            showToast('Calving cleared');
+            reloadKeepingOverride(aid? 1800:700);
+          } catch(e){ showToast('Clear failed'); }
+        });
+      }
+      if(openAuditBtn){
+        openAuditBtn.addEventListener('click', async ()=>{
+          try{
+            const r = await fetch(`/cow/${cowId}/audit`); const data = await r.json();
+            const list = (data.items||[]);
+            const wrap=document.createElement('div'); wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;';
+            const box=document.createElement('div'); box.style.cssText='background:#fff;border-radius:12px;max-width:900px;width:100%;padding:16px;display:flex;flex-direction:column;gap:12px;'; wrap.appendChild(box);
+            box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><h3 style="margin:0;font-size:1rem;">Changes Log</h3><button class="btn muted" id="closeAudit">Close</button></div>'+
+              '<div style="overflow:auto;max-height:60vh;border:1px solid #e9ecef;border-radius:8px;">'+
+              '<table style="width:100%;border-collapse:collapse;font-size:.72rem;"><thead><tr style="background:#f8f9fa;"><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">When</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Action</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Actor</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #dee2e6;">Details</th><th></th></tr></thead><tbody>'+ 
+              list.map(a=>{
+                const dt=new Date(a.createdAt||a.at||Date.now());
+                const canRestore=(a.action==='insemination.delete' && a.payload && a.payload.snapshot) || (a.action==='insemination.clearAll' && a.payload && Array.isArray(a.payload.snapshots) && a.payload.snapshots.length>0);
+                const detail = a.action.startsWith('insemination')? (a.payload && (a.payload.notes|| (a.payload.date? new Date(a.payload.date).toLocaleDateString() : '')) ) : JSON.stringify(a.payload||{});
+                const restoreLabel = a.action==='insemination.clearAll' ? 'Restore This Batch' : 'Restore';
+                const restoreClass = a.action==='insemination.clearAll' ? 'restoreBatchBtn' : 'restoreBtn';
+                return '<tr data-id="'+a._id+'"><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+dt.toLocaleString()+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+a.action+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+(a.actor||'user')+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+detail+'</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f5;">'+(canRestore?'<button class="btn muted '+restoreClass+'" data-aid="'+a._id+'">'+restoreLabel+'</button>':'')+'</td></tr>';
+              }).join('') + '</tbody></table></div>';
+            document.body.appendChild(wrap);
+            box.querySelector('#closeAudit').onclick=()=> wrap.remove();
+            wrap.onclick=(e)=>{ if(e.target===wrap) wrap.remove(); };
+            box.querySelectorAll('.restoreBtn').forEach(btn=>{
+              btn.addEventListener('click', async ()=>{
+                const aid=btn.getAttribute('data-aid');
+                if(!(await showConfirm('Restore deleted insemination attempt?',{title:'Restore Attempt'}))) return;
+                try{
+                  const rr = await fetch(`/cow/${cowId}/insemination/restore/${aid}`,{method:'POST'});
+                  const t = await rr.text(); if(!rr.ok){ showToast('Restore failed: '+t); return; }
+                  // Close the log immediately so confirm can be clicked on the main screen
+                  const overlay=document.querySelector('div[style*="position:fixed"][style*="z-index:1200"]'); if(overlay){ overlay.remove(); }
+                  showToast('Restored. You can confirm once reloaded.');
+                  setTimeout(()=> location.reload(), 700);
+                }catch(e){ showToast('Restore error'); }
+              });
+            });
+
+            box.querySelectorAll('.restoreBatchBtn').forEach(btn=>{
+              btn.addEventListener('click', async ()=>{
+                const aid=btn.getAttribute('data-aid');
+                if(!(await showConfirm('Restore all attempts from this clear action?',{title:'Restore Batch'}))) return;
+                try{
+                  const rr = await fetch(`/cow/${cowId}/inseminations/restore/${aid}`,{method:'POST'});
+                  const j = await rr.json(); if(!rr.ok){ showToast('Restore failed'); return; }
+                  if(j && typeof j.total==='number'){
+                    const restored=(j.restored||0), total=j.total, missing=j.missing||Math.max(0,total-restored);
+                    const statusText = missing>0 ? ('Batch partially restored ('+restored+'/'+total+'). Click again to add remaining.') : 'Batch up to date ('+total+'/'+total+').';
+                    showToast(statusText);
+                  } else {
+                    showToast('Restored '+(j.restored||0)+' attempts');
+                  }
+                  // Close the log so the user can click Confirm
+                  const overlay=document.querySelector('div[style*="position:fixed"][style*="z-index:1200"]'); if(overlay){ overlay.remove(); }
+                  setTimeout(()=> location.reload(), 700);
+                }catch(e){ showToast('Restore error'); }
+              });
+            });
+
+            // Per-clear action restore handled by row buttons above.
+          }catch(e){ showToast('Failed to load log'); }
+        });
+      }
+      if(deleteLatestBtn){
+        deleteLatestBtn.addEventListener('click', async ()=>{
+          console.log('[override] delete latest click');
+          // Ensure dataset has latest id if repro parsed later
+          if(!deleteLatestBtn.dataset.latestId && repro && repro.latest && repro.latest._id){
+            deleteLatestBtn.dataset.latestId = repro.latest._id;
+            console.log('[override] populated dataset.latestId from repro.latest');
+          }
+          let latestId = deleteLatestBtn.dataset.latestId || (repro && repro.latest ? repro.latest._id : null);
+          console.log('[override] derived latestId', latestId, repro.latest);
+          if(!latestId){ showToast('No attempt to delete'); return; }
+          if(!(await showConfirm('Delete ONLY the latest insemination attempt? Earlier history is preserved.',{title:'Delete Latest Attempt'}))) return;
+          try {
+            const resp = await fetch(`/cow/${cowId}/insemination/${latestId}`,{method:'DELETE'});
+            const txt = await resp.text();
+            if(!resp.ok){ console.error('[override] delete latest response error', resp.status, txt); showToast('Delete failed: '+(txt||('HTTP '+resp.status))); return; }
+            console.log('[override] delete latest success', txt);
+            showToast('Attempt deleted');
+            reloadKeepingOverride(700);
+          } catch(e){
+            console.error('[override] delete latest attempt error', e);
+            showToast('Delete failed: '+(e&&e.message?e.message:'request error'));
+          }
+        });
+      }
+
+      if(clearAllBtn){
+        clearAllBtn.addEventListener('click', async ()=>{
+          if(!(await showConfirm('Clear ALL insemination attempts for this cow?',{title:'Clear All Inseminations'}))) return;
+          try{
+            const resp = await fetch(`/cow/${cowId}/inseminations`,{method:'DELETE'});
+            const j = await resp.json();
+            if(!resp.ok){ showToast('Clear failed'); return; }
+            const aid = j && j.auditId;
+            showToast('All attempts cleared');
+            reloadKeepingOverride(aid? 1800:700);
+          }catch(e){ showToast('Clear error'); }
+        });
+      }
+
+      // Removed auto-logout on navigation; override remains until manual lock or session expiry
+  });
+  </script>
+  <!-- Hidden JSON payload for reproduction state (placed outside JS to avoid parse errors) -->
+  <div id="reproData" data-json='<%= JSON.stringify(repro).replace(/"/g, '&quot;') %>' data-override="<%= override ? '1' : '0' %>" style="display:none"></div>
+</body>
+</html>
+    

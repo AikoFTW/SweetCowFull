@@ -31,16 +31,216 @@
       </footer>
     </nav>
 
-    <main class="content">
-      <!-- Empty dashboard content -->
+    <main class="content" style="padding:16px;">
+      <% const A = (typeof alerts !== 'undefined' && alerts) ? alerts : { week: [], month: { days: [] } }; %>
+      <% const colorMap = { calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545', weaning:'#0ea5e9' }; %>
+      <% const __now = new Date(); const __y = __now.getFullYear(); const __m = __now.getMonth(); const __d = __now.getDate(); %>
+      <% const __M = (A.monthDue || A.month || {}); const __isThisMonth = (typeof __M.monthIndex === 'number' && typeof __M.year === 'number') ? (__M.monthIndex === __m && __M.year === __y) : true; %>
+      <section class="dashboard-grid">
+        <div>
+          <div class="card" style="min-height:280px;">
+            <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <h2 style="margin:0;">Past Due</h2>
+                <small class="section-sub">Alerts have passed; event date shown.</small>
+              </div>
+            </div>
+            <% const PD = (A.pastDue || []); %>
+            <div id="pastDueList" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;">
+              <% if (!PD.length) { %>
+                <div style="opacity:.6;font-size:.85rem;">Nothing past due. You're all caught up!</div>
+              <% } else { %>
+                <% PD.forEach(function(it){ %>
+                  <div style="display:flex;gap:10px;align-items:center;">
+                    <span class="dot <%= colorMap[it.type] ? ('type-' + it.type) : 'type-default' %>" style="width:8px;height:8px;border-radius:999px;"></span>
+                    <div style="display:flex;flex-direction:column;">
+                      <div style="font-weight:700;font-size:.85rem;color:#212529;"><%= it.label %> — <a href="/profile/<%= it.entity.type %>/<%= it.entity.id %>"><%= it.entity.name %></a></div>
+                      <div style="font-size:.7rem;color:#6c757d;">Event: <%= new Date(it.when).toLocaleDateString() %></div>
+                    </div>
+                  </div>
+                <% }); %>
+              <% } %>
+            </div>
+          </div>
+          <div id="upcomingTasksBox" class="card" style="min-height:240px;">
+            <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <h2 style="margin:0;">Upcoming Tasks</h2>
+                <small class="section-sub">Tasks due in the next 21 days.</small>
+              </div>
+            </div>
+            <div id="upcomingTasksList"><div style="opacity:.6;font-size:.85rem;">No upcoming tasks</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="min-height:280px;">
+          <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <h2 style="margin:0;">Weekly Tasks</h2>
+              <small class="section-sub">Alerts are shown in Alerts; tasks here are due on their day.</small>
+            </div>
+            <div id="filters" style="margin-left:auto;display:flex;align-items:center;">
+              <button id="toggleFilters" class="btn muted" type="button" style="padding:6px 12px;">Filter</button>
+            </div>
+          </div>
+          <div id="filterPanel" class="card" style="display:none;padding:8px;margin:0 0 10px 0;">
+            <div class="chips">
+              <span style="font-size:.8rem;color:#6c757d;">Show:</span>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="calving" checked>
+                <span>Calving</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="dryOff" checked>
+                <span>Dry‑Off</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="changeFeed" checked>
+                <span>Change Feed</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="pregnancyCheck" checked>
+                <span>Preg Check</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="insemination" checked>
+                <span>Insem</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="graduation" checked>
+                <span>Graduation</span>
+              </label>
+              <label class="chip">
+                <input type="checkbox" class="flt" value="weaning" checked>
+                <span>Weaning</span>
+              </label>
+              <span style="flex:1"></span>
+              <label class="chip" style="background:#fff;">
+                <input type="checkbox" id="showCompleted">
+                <span>Completed</span>
+              </label>
+            </div>
+          </div>
+          <div id="weekGrid" class="calendar-grid" style="gap:8px;">
+            <% (A.week || []).forEach(function(day){ %>
+              <% var __day = new Date(day.date); var __isToday = (__day.getFullYear()===__y && __day.getMonth()===__m && __day.getDate()===__d); %>
+              <div class="day-card <%= __isToday ? 'today' : '' %> card" style="padding:10px;min-height:120px;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-weight:700;font-size:.8rem;color:#495057;"><%= new Date(day.date).toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' }) %></div>
+                <% if (__isToday) { %>
+                  <div style="align-self:flex-start;font-size:.65rem;color:#0d6efd;background:#e7f1ff;border:1px solid #cfe2ff;border-radius:999px;padding:2px 8px;">Today</div>
+                <% } %>
+                <% if (!day.items || !day.items.length) { %>
+                  <div style="opacity:.6;font-size:.75rem;">No tasks</div>
+                <% } else { %>
+                  <% day.items.sort(function(a,b){ return new Date(a.when)-new Date(b.when); }).forEach(function(it){ %>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      <span class="dot <%= colorMap[it.type] ? ('type-' + it.type) : 'type-default' %>" style="width:8px;height:8px;border-radius:999px;"></span>
+                      <div style="display:flex;flex-direction:column;">
+                        <div style="font-weight:700;font-size:.8rem;color:#212529;"><%= it.label %></div>
+                        <div style="font-size:.7rem;color:#6c757d;">for <a href="/profile/<%= it.entity.type %>/<%= it.entity.id %>"><%= it.entity.name %></a> • <%= new Date(it.when).toLocaleDateString() %></div>
+                      </div>
+                    </div>
+                  <% }); %>
+                <% } %>
+              </div>
+            <% }); %>
+          </div>
+          </div>
+          <div id="upcomingBox" class="card" style="min-height:240px;">
+            <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <h2 style="margin:0;">Alerts</h2>
+                <small class="section-sub">Upcoming alerts for the next 21 days.</small>
+              </div>
+            </div>
+            <div id="upcomingList"><div style="opacity:.6;font-size:.85rem;">No alerts</div></div>
+          </div>
+        </div>
+        <div>
+          <!-- Right column: Monthly Calendar -->
+          <div>
+          <div id="calendarCard" class="card" style="padding:14px;">
+            <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <h2 id="monthTitle" style="margin:0;"></h2>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+                <button id="prevMonth" class="btn muted" type="button" style="padding:4px 8px;">◀</button>
+                <button id="nextMonth" class="btn muted" type="button" style="padding:4px 8px;">▶</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns: repeat(7, 1fr); gap:6px; margin-bottom:6px; font-size:.7rem; color:#6c757d;">
+              <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div class="calendar-grid">
+              <% const __monthDue = (A.monthDue || A.month || {}); const monthDays = __monthDue.days || []; const __offset = (typeof __monthDue.year==='number' && typeof __monthDue.monthIndex==='number') ? new Date(__monthDue.year, __monthDue.monthIndex, 1).getDay() : 0; %>
+              <% for (var k=0;k<__offset;k++){ %>
+                <div class="calendar-day empty" style="background:#f8f9fa;opacity:.4;"></div>
+              <% } %>
+              <% for (var i=0;i<monthDays.length;i++){ var d = monthDays[i]; var __isMonthToday = (__isThisMonth && d.day === __d); %>
+                <div class="calendar-day <%= __isMonthToday ? 'today' : '' %>" data-day="<%= d.day %>">
+                  <div class="daynum"><%= d.day %></div>
+                  <% if (__isMonthToday) { %>
+                    <div style="align-self:flex-start;font-size:.6rem;color:#0d6efd;background:#e7f1ff;border:1px solid #cfe2ff;border-radius:999px;padding:1px 6px;">Today</div>
+                  <% } %>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <% (d.items||[]).slice(0,5).forEach(function(it){ %>
+                      <span class="dot <%= colorMap[it.type] ? ('type-' + it.type) : 'type-default' %>" style="width:6px;height:6px;border-radius:999px;"></span>
+                    <% }); %>
+                    <% if ((d.items||[]).length > 5) { %>
+                      <span style="font-size:.65rem;color:#6c757d;">+<%= (d.items.length-5) %></span>
+                    <% } %>
+                  </div>
+                </div>
+              <% } %>
+            </div>
+            <div class="calendar-legend">
+              <span style="font-size:.75rem;color:#6c757d;">Legend:</span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#0d6efd;"></span><small>Calving</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#20c997;"></span><small>Dry-Off</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#fd7e14;"></span><small>Change Feed</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#6f42c1;"></span><small>Pregnancy Check</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#198754;"></span><small>Insemination</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#dc3545;"></span><small>Graduation</small></span>
+              <span style="display:flex;gap:6px;align-items:center;"><span style="width:8px;height:8px;border-radius:999px;background:#0ea5e9;"></span><small>Weaning</small></span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <%- include('partials/footer') %>
 
+    <script id="alertsData" type="application/json"><%- JSON.stringify(typeof alerts !== 'undefined' ? alerts : {}) %></script>
+
+    <style>
+      @media (max-width: 900px){ .dashboard-grid{ grid-template-columns: 1fr !important; } }
+      @media (min-width: 901px) and (max-width: 1200px){ .dashboard-grid{ grid-template-columns: 1fr 1fr !important; } }
+      .day-card.today{ border-color:#0d6efd; }
+      .calendar-day.today{ border-color:#0d6efd; }
+      /* Dot color classes to avoid inline CSS parsing errors */
+      .dot.type-default{ background:#adb5bd; }
+      .dot.type-calving{ background:#0d6efd; }
+      .dot.type-dryOff{ background:#20c997; }
+      .dot.type-changeFeed{ background:#fd7e14; }
+      .dot.type-pregnancyCheck{ background:#6f42c1; }
+      .dot.type-insemination{ background:#198754; }
+      .dot.type-graduation{ background:#dc3545; }
+      .dot.type-weaning{ background:#0ea5e9; }
+    </style>
     <script>
       const sidebar = document.getElementById('sidebar');
       const hamburger = document.querySelector('.hamburger');
       const closeSidebar = document.querySelectorAll('.close-sidebar');
+      const colorMapJS = { calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545', weaning:'#0ea5e9' };
+      let alertsState = JSON.parse((document.getElementById('alertsData') && document.getElementById('alertsData').textContent) || '{}');
+      let selectedMonth = { year: (alertsState.monthDue&&alertsState.monthDue.year) || (alertsState.month&&alertsState.month.year) || new Date().getFullYear(), monthIndex: (alertsState.monthDue&&alertsState.monthDue.monthIndex) || (alertsState.month&&alertsState.month.monthIndex) || new Date().getMonth() };
+      let selectedAnchor = null; // { y, m, d } for locally-selected day
+      let completedMap = new Map(); // key 'YYYY-MM-DD' -> array of confirmations
+      let nextMonthState = null; // cache next month's alerts for Upcoming spanning months
+      function monthName(i){ return new Date(2000, i, 1).toLocaleString(undefined,{ month:'long' }); }
+      function setMonthTitle(){ const t=document.getElementById('monthTitle'); if(!t) return; t.textContent=`${monthName(selectedMonth.monthIndex)} ${selectedMonth.year}`; }
+      setMonthTitle();
 
       hamburger.addEventListener('click', () => {
         sidebar.classList.toggle('open');
@@ -53,10 +253,253 @@
       });
 
       document.addEventListener('click', (e) => {
-        if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
-          sidebar.classList.remove('open');
+        const outsideSidebar = !sidebar || !sidebar.contains(e.target);
+        const outsideHamburger = !hamburger || !hamburger.contains(e.target);
+        if (outsideSidebar && outsideHamburger) {
+          sidebar && sidebar.classList.remove('open');
         }
       });
+      // Calendar click -> reload weekly via /alerts with anchor
+      (function(){
+        const grid = document.querySelectorAll('.calendar-day');
+        const toggleFiltersBtn = document.getElementById('toggleFilters');
+        const filterPanel = document.getElementById('filterPanel');
+        if(toggleFiltersBtn && filterPanel){ toggleFiltersBtn.addEventListener('click', ()=>{ const isShown = filterPanel.style.display !== 'none'; filterPanel.style.display = isShown? 'none' : 'block'; }); }
+        // Persist filters & completed toggle in localStorage
+        const STORE_TYPES = 'sweetcow.filters.types';
+        const STORE_COMPLETED = 'sweetcow.filters.completed';
+        function restoreTypes(){ try{ const raw=localStorage.getItem(STORE_TYPES); if(!raw) return; const types=JSON.parse(raw)||[]; const checkAll = !Array.isArray(types) || types.length===0; document.querySelectorAll('#filterPanel .flt').forEach(ch=>{ ch.checked = checkAll ? true : types.includes(ch.value); }); }catch(_){} }
+        function saveTypes(){ try{ localStorage.setItem(STORE_TYPES, JSON.stringify(activeTypes())); }catch(_){} }
+        function restoreCompleted(){ try{ const raw=localStorage.getItem(STORE_COMPLETED); const on = (raw==='1' || raw==='true'); const el=document.getElementById('showCompleted'); if(el){ el.checked = !!on; } }catch(_){} }
+        // Use midday local time to avoid UTC parsing shifting month
+        function fmt(y,m,d){ const mm=String(m+1).padStart(2,'0'); const dd=String(d).padStart(2,'0'); return `${y}-${mm}-${dd}T12:00:00`; }
+        function ymd(y,m,d){ const mm=String(m+1).padStart(2,'0'); const dd=String(d).padStart(2,'0'); return `${y}-${mm}-${dd}`; }
+        function localYMD(date){ const y=date.getFullYear(); const m=date.getMonth(); const d=date.getDate(); return ymd(y,m,d); }
+        function isShowCompleted(){ const el=document.getElementById('showCompleted'); return !!(el && el.checked); }
+        function getWeekRange(){ const week=(alertsState.week||[]); if(week.length){ const start=new Date(week[0].date); const end=new Date(week[week.length-1].date); return { from: localYMD(start), to: localYMD(end) }; } const today=new Date(); const start=new Date(today); start.setDate(today.getDate()-today.getDay()); const end=new Date(start); end.setDate(start.getDate()+6); return { from: localYMD(start), to: localYMD(end) }; }
+        function getMonthRange(){ const y=selectedMonth.year; const m=selectedMonth.monthIndex; const first=ymd(y,m,1); const lastDay=new Date(y,m+1,0).getDate(); const last=ymd(y,m,lastDay); return { from:first, to:last }; }
+        async function fetchCompletedRange(from,to){ try{ const r=await fetch(`/confirmations-range?from=${from}&to=${to}`); if(!r.ok) return []; return r.json(); }catch(_){ return []; } }
+        async function loadCompletedWeek(){ const {from,to}=getWeekRange(); const list=await fetchCompletedRange(from,to); completedMap = new Map(); for(const c of list){ const key = localYMD(new Date(c.when)); const arr = completedMap.get(key) || []; arr.push(c); completedMap.set(key, arr); } }
+        async function loadCompletedMonth(){ const {from,to}=getMonthRange(); const list=await fetchCompletedRange(from,to); completedMap = new Map(completedMap); for(const c of list){ const key = localYMD(new Date(c.when)); const arr = completedMap.get(key) || []; arr.push(c); completedMap.set(key, arr); } }
+        function activeTypes(){ const inputs = document.querySelectorAll('#filterPanel .flt'); if(!inputs || !inputs.length){ return ['calving','dryOff','changeFeed','pregnancyCheck','insemination','graduation','weaning']; } return Array.from(inputs).filter(ch=> ch.checked).map(ch=> ch.value); }
+        function filterItems(list){ const allow=new Set(activeTypes()); return (list||[]).filter(it=> allow.has(it.type)); }
+        function sameYMD(a, ymd){ return a && ymd && a.getFullYear()===ymd.y && a.getMonth()===ymd.m && a.getDate()===ymd.d; }
+        function renderWeek(week){
+          const container = document.getElementById('weekGrid'); if(!container) return;
+          const today = new Date();
+          container.innerHTML = (week||[]).map(function(day){
+            const d = new Date(day.date);
+            const isToday = (d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth() && d.getDate()===today.getDate());
+            const isSelected = selectedAnchor ? sameYMD(d, selectedAnchor) : false;
+            const items = filterItems((day.items||[]).sort((a,b)=> new Date(a.when)-new Date(b.when)));
+            const entityNameById = new Map(items.map(it=> [String(it.entity.id), it.entity.name]));
+            const done = isShowCompleted() ? (completedMap.get(localYMD(d))||[]) : [];
+            const dots = items.map(function(it){ return (
+              `<div style="display:flex;gap:8px;align-items:center;">
+                <span class=\"dot\" style=\"width:8px;height:8px;border-radius:999px;background:${colorMapJS[it.type]||'#adb5bd'};\"></span>
+                <div style=\"display:flex;flex-direction:column;\">
+                  <div style=\"font-weight:700;font-size:.8rem;color:#212529;\">${it.label}</div>
+                  <div style=\"font-size:.7rem;color:#6c757d;\">for <a href=\"/profile/${it.entity.type}/${it.entity.id}\">${it.entity.name}</a> • ${new Date(it.when).toLocaleDateString()}</div>
+                </div>
+              </div>`
+            ); }).join('');
+            const itemsHtml = items.length ? (dots || '') : '<div style="opacity:.6;font-size:.75rem;">No tasks</div>';
+            const completedHtml = done.length? (`<div style=\"margin-top:6px;\"><div style=\"font-size:.7rem;color:#6c757d;\">Completed</div>`+done.map(function(c){ const name = c.entityName || entityNameById.get(String(c.entityId)) || ''; const link = `/profile/${c.entityType}/${c.entityId}`; return (
+              `<div style=\"display:flex;gap:8px;align-items:center;opacity:.7;\">\
+                <span class=\"dot\" style=\"width:8px;height:8px;border-radius:999px;background:#adb5bd;\"></span>\
+                <div style=\"display:flex;flex-direction:column;\">\
+                  <div style=\"font-weight:600;font-size:.75rem;color:#495057;\">${c.type} \u2014 for <a href=\"${link}\">${name || (c.entityType)}</a></div>\
+                  <div style=\"font-size:.7rem;color:#868e96;\">${new Date(c.when).toLocaleDateString()}</div>\
+                </div>\
+              </div>`
+            ); }).join('')+`</div>`) : '';
+            return (
+              `<div style=\"background:#fff;border:1px solid ${isToday?'#0d6efd':'#e9ecef'};${isSelected? 'outline:2px solid #6610f2; outline-offset:-2px;':''}border-radius:10px;padding:10px;min-height:120px;display:flex;flex-direction:column;gap:8px;\">\
+                 <div style=\"font-weight:700;font-size:.8rem;color:#495057;\">${d.toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' })}</div>
+                 ${isToday?'<div style=\"align-self:flex-start;font-size:.65rem;color:#0d6efd;background:#e7f1ff;border:1px solid #cfe2ff;border-radius:999px;padding:2px 8px;\">Today</div>':''}
+                 ${isSelected && !isToday?'<div style=\"align-self:flex-start;font-size:.65rem;color:#6610f2;background:#f3f0ff;border:1px solid #e5dbff;border-radius:999px;padding:2px 8px;\">Selected</div>':''}
+                 ${itemsHtml}
+                 ${completedHtml}
+               </div>`
+            );
+          }).join('');
+        }
+        function renderPastDue(){
+          const PD = (alertsState.pastDue||[]);
+          const allow = new Set(activeTypes());
+          const list = PD.filter(it=> allow.has(it.type));
+          const container = document.getElementById('pastDueList');
+          if(container){
+            container.innerHTML = list.length? list.map(function(it){
+              return `<div style=\"display:flex;gap:10px;align-items:center;\">
+                        <span class=\"dot\" style=\"width:8px;height:8px;border-radius:999px;background:${colorMapJS[it.type]||'#adb5bd'};\"></span>
+                        <div style=\"display:flex;flex-direction:column;\">
+                          <div style=\"font-weight:700;font-size:.85rem;color:#212529;\">${it.label} — <a href=\"/profile/${it.entity.type}/${it.entity.id}\">${it.entity.name}</a></div>
+                          <div style=\"font-size:.7rem;color:#6c757d;\">Event: ${new Date(it.when).toLocaleDateString()}</div>
+                        </div>
+                      </div>`;
+            }).join('') : '<div style="opacity:.6;font-size:.85rem;">Nothing past due. You\'re all caught up!</div>';
+          }
+        }
+        async function fetchAlerts(anchor){
+          try{
+            const r = await fetch(`/alerts?anchor=${anchor}`);
+            if(!r.ok){ console.warn('alerts fetch failed', r.status); return; }
+            const data = await r.json(); alertsState = data;
+            selectedMonth.year = (data.monthDue&&data.monthDue.year) || (data.month&&data.month.year) || selectedMonth.year;
+            selectedMonth.monthIndex = (data.monthDue&&data.monthDue.monthIndex) || (data.month&&data.month.monthIndex) || selectedMonth.monthIndex;
+            setMonthTitle();
+            if(isShowCompleted()){ await loadCompletedWeek(); await loadCompletedMonth(); } else { completedMap = new Map(); }
+            renderWeek(data.week);
+            renderPastDue();
+            renderCalendar();
+            await prefetchNextMonth();
+            renderUpcoming();
+          }catch(err){ console.warn('alerts error', err); const box = document.getElementById('upcomingList'); if(box){ box.innerHTML = '<div style="opacity:.6;font-size:.85rem;">Failed to load upcoming</div>'; } }
+        }
+        async function prefetchNextMonth(){
+          try{
+            const y = selectedMonth.year; const m = selectedMonth.monthIndex;
+            const next = new Date(y, m+1, 1);
+            const anchor = fmt(next.getFullYear(), next.getMonth(), 1);
+            const r = await fetch(`/alerts?anchor=${anchor}`);
+            nextMonthState = r.ok? (await r.json()) : null;
+          }catch(_){ nextMonthState = null; }
+        }
+        function getAlertsForDate(date){
+          const y=date.getFullYear(); const m=date.getMonth(); const d=date.getDate();
+          const pick = (state)=>{ const month=(state&&state.month)||{}; const days=month.days||[]; const hit=days.find(x=> x.day===d); return hit? (hit.items||[]) : []; };
+          if(alertsState.month && alertsState.month.year===y && alertsState.month.monthIndex===m){ return pick(alertsState); }
+          if(nextMonthState && nextMonthState.month && nextMonthState.month.year===y && nextMonthState.month.monthIndex===m){ return pick(nextMonthState); }
+          return [];
+        }
+        function renderUpcoming(){
+          const box = document.getElementById('upcomingList'); if(!box) return;
+          const today = new Date(); const allow = new Set(activeTypes());
+          const upcoming = [];
+          for(let i=0;i<21;i++){
+            const day = new Date(today.getFullYear(), today.getMonth(), today.getDate()+i);
+            const items = getAlertsForDate(day).filter(it=> allow.has(it.type));
+            for(const it of items){ upcoming.push({ alertDate: day, item: it }); }
+          }
+          upcoming.sort((a,b)=> a.alertDate - b.alertDate);
+          const list = upcoming.slice(0, 25);
+          box.innerHTML = list.length ? list.map(({alertDate,item})=> (`
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+              <span class="dot ${colorMapJS[item.type] ? ('type-' + item.type) : 'type-default'}" style="width:8px;height:8px;border-radius:999px;"></span>
+              <div style="display:flex;flex-direction:column;">
+                <div style="font-weight:700;font-size:.85rem;color:#212529;">${item.label} — <a href="/profile/${item.entity.type}/${item.entity.id}">${item.entity.name}</a></div>
+                <div style="font-size:.7rem;color:#6c757d;">Alert: ${alertDate.toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' })} • Event: ${new Date(item.when).toLocaleDateString()}</div>
+              </div>
+            </div>
+            `)).join('') : '<div style="opacity:.6;font-size:.85rem;">No alerts</div>';
+        }
+          function getDueTasksForDate(date){
+            const y=date.getFullYear(); const m=date.getMonth(); const d=date.getDate();
+            const pickDue = (state)=>{ const monthDue=(state&&state.monthDue)||{}; const days=monthDue.days||[]; const hit=days.find(x=> x.day===d); return hit? (hit.items||[]) : []; };
+            if(alertsState.monthDue && alertsState.monthDue.year===y && alertsState.monthDue.monthIndex===m){ return pickDue(alertsState); }
+            if(nextMonthState && nextMonthState.monthDue && nextMonthState.monthDue.year===y && nextMonthState.monthDue.monthIndex===m){ return pickDue(nextMonthState); }
+            return [];
+          }
+          function renderUpcomingTasks(){
+            const box = document.getElementById('upcomingTasksList'); if(!box) return;
+            const today = new Date(); const allow = new Set(activeTypes());
+            const upcoming = [];
+            for(let i=0;i<21;i++){
+              const day = new Date(today.getFullYear(), today.getMonth(), today.getDate()+i);
+              const items = getDueTasksForDate(day).filter(it=> allow.has(it.type));
+              for(const it of items){ upcoming.push({ dueDate: day, item: it }); }
+            }
+            upcoming.sort((a,b)=> a.dueDate - b.dueDate);
+            const list = upcoming.slice(0, 25);
+            box.innerHTML = list.length ? list.map(({dueDate,item})=> (`
+              <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+                <span class="dot ${colorMapJS[item.type] ? ('type-' + item.type) : 'type-default'}" style="width:8px;height:8px;border-radius:999px;"></span>
+                <div style="display:flex;flex-direction:column;">
+                  <div style="font-weight:700;font-size:.85rem;color:#212529;">${item.label} — <a href="/profile/${item.entity.type}/${item.entity.id}">${item.entity.name}</a></div>
+                  <div style="font-size:.7rem;color:#6c757d;">Due: ${dueDate.toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' })}</div>
+                </div>
+              </div>
+            `)).join('') : '<div style="opacity:.6;font-size:.85rem;">No upcoming tasks</div>';
+          }
+                    renderUpcomingTasks();
+          renderUpcomingTasks();
+        function renderCalendar(){
+          const cal = document.querySelector('#calendarCard .calendar-grid');
+          const today = new Date();
+          if(!cal) return;
+          const month = (alertsState && alertsState.monthDue) ? alertsState.monthDue : ((alertsState && alertsState.month) ? alertsState.month : { year: today.getFullYear(), monthIndex: today.getMonth(), days: [] });
+          const days = Array.isArray(month.days) ? month.days : [];
+          const isThisMonth = (typeof month.year==='number' && typeof month.monthIndex==='number') ? (month.year===today.getFullYear() && month.monthIndex===today.getMonth()) : true;
+          const offset = (typeof month.year==='number' && typeof month.monthIndex==='number') ? new Date(month.year, month.monthIndex, 1).getDay() : 0;
+          let html = '';
+          html += Array(offset).fill(0).map(()=> `<div class="calendar-day empty" style="border:1px solid #f1f3f5;border-radius:8px;padding:10px;min-height:84px;background:#f8f9fa;opacity:.4;"></div>`).join('');
+          html += days.map(function(d){
+            const dots = (d.items||[]).slice(0,5).filter(it=> (new Set(activeTypes())).has(it.type)).map(it=> `<span style=\"width:6px;height:6px;border-radius:999px;background:${colorMapJS[it.type]||'#adb5bd'};\"></span>`).join('');
+            const key = ymd(month.year||today.getFullYear(), month.monthIndex||today.getMonth(), d.day);
+            const completedDots = isShowCompleted() ? ((completedMap.get(key)||[]).slice(0,5).map(()=> `<span style=\"width:6px;height:6px;border-radius:999px;background:#adb5bd;\"></span>`).join('')) : '';
+            const isToday = isThisMonth && (d.day === today.getDate());
+            return `<div class=\"calendar-day\" data-day=\"${d.day}\" style=\"cursor:pointer;border:1px solid ${isToday?'#0d6efd':'#f1f3f5'};border-radius:8px;padding:10px;min-height:84px;display:flex;flex-direction:column;gap:6px;\">
+                      <div style=\"font-size:.75rem;color:#495057;font-weight:700;\">${d.day}</div>
+                      ${isToday?'<div style=\"align-self:flex-start;font-size:.6rem;color:#0d6efd;background:#e7f1ff;border:1px solid #cfe2ff;border-radius:999px;padding:1px 6px;\">Today</div>':''}
+                      <div style=\"display:flex;gap:4px;flex-wrap:wrap;\">${dots}${completedDots}${(d.items||[]).length>5?`<span style=\"font-size:.65rem;color:#6c757d;\">+${(d.items||[]).length-5}</span>`:''}</div>
+                    </div>`;
+          }).join('');
+          cal.innerHTML = html;
+          // Apply selected outline if in this month
+          if(selectedAnchor && month.year===selectedAnchor.y && month.monthIndex===selectedAnchor.m){
+            const sel = cal.querySelector(`.calendar-day[data-day="${selectedAnchor.d}"]`);
+            if(sel){ sel.style.outline='2px solid #6610f2'; sel.style.outlineOffset='-2px'; }
+          }
+          // rebind click
+          document.querySelectorAll('.calendar-day').forEach(function(cell){
+            cell.addEventListener('click', function(){
+              const dayAttr = cell.getAttribute('data-day');
+              if(!dayAttr) return; const day = parseInt(dayAttr,10);
+              const anchor = fmt(selectedMonth.year, selectedMonth.monthIndex, day);
+              selectedAnchor = { y:selectedMonth.year, m:selectedMonth.monthIndex, d:day };
+              document.querySelectorAll('.calendar-day').forEach(el=>{ el.style.outline=''; el.style.outlineOffset=''; });
+              cell.style.outline='2px solid #6610f2'; cell.style.outlineOffset='-2px';
+              fetchAlerts(anchor);
+            });
+          });
+        }
+        grid.forEach(function(cell){
+          cell.addEventListener('click', function(){
+            const dayAttr = cell.getAttribute('data-day');
+            if(!dayAttr) return; const day = parseInt(dayAttr,10);
+            const now = new Date(); const anchor = fmt(now.getFullYear(), now.getMonth(), day);
+            // highlight selection
+            document.querySelectorAll('.calendar-day').forEach(el=>{ el.style.outline=''; el.style.outlineOffset=''; });
+            cell.style.outline='2px solid #6610f2'; cell.style.outlineOffset='-2px';
+            selectedAnchor = { y: now.getFullYear(), m: now.getMonth(), d: day };
+            fetchAlerts(anchor);
+          });
+        });
+        // Filters
+        // Restore saved filters/toggle and fetch fresh alerts for today
+        restoreTypes();
+        restoreCompleted();
+        // Populate Upcoming immediately using server-rendered alertsState
+        renderUpcoming();
+        const today = new Date();
+        const initialAnchor = fmt(selectedMonth.year, selectedMonth.monthIndex, today.getDate());
+        fetchAlerts(initialAnchor);
+        // Filters
+        document.querySelectorAll('#filterPanel .flt').forEach(ch=>{
+          ch.addEventListener('change', ()=>{ saveTypes(); renderWeek(alertsState.week); renderPastDue(); renderCalendar(); renderUpcoming(); });
+        });
+        // Recompute upcoming when navigating months
+        const showCompletedEl = document.getElementById('showCompleted');
+        if(showCompletedEl){ showCompletedEl.addEventListener('change', async ()=>{ try{ localStorage.setItem(STORE_COMPLETED, showCompletedEl.checked?'1':'0'); }catch(_){} if(isShowCompleted()){ await loadCompletedWeek(); await loadCompletedMonth(); } else { completedMap = new Map(); } renderWeek(alertsState.week); renderCalendar(); }); }
+        // Prev/Next month
+        document.getElementById('prevMonth').addEventListener('click', ()=>{
+          const y = selectedMonth.year; const m = selectedMonth.monthIndex; const newDate = new Date(y, m-1, 1); selectedMonth.year=newDate.getFullYear(); selectedMonth.monthIndex=newDate.getMonth(); setMonthTitle(); selectedAnchor = { y:selectedMonth.year, m:selectedMonth.monthIndex, d:1 }; fetchAlerts(fmt(selectedMonth.year, selectedMonth.monthIndex, 1));
+        });
+        document.getElementById('nextMonth').addEventListener('click', ()=>{
+          const y = selectedMonth.year; const m = selectedMonth.monthIndex; const newDate = new Date(y, m+1, 1); selectedMonth.year=newDate.getFullYear(); selectedMonth.monthIndex=newDate.getMonth(); setMonthTitle(); selectedAnchor = { y:selectedMonth.year, m:selectedMonth.monthIndex, d:1 }; fetchAlerts(fmt(selectedMonth.year, selectedMonth.monthIndex, 1));
+        });
+      })();
     </script>
 </body>
 </html>

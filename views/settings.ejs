@@ -51,8 +51,8 @@
               <input type="number" id="postpartumInseminationStartDays" name="postpartumInseminationStartDays" value="<%= (settings.postpartumInseminationStartDays || 60) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
             </div>
             <div class="field">
-              <label for="inseminationIntervalMonths">Insemination Interval (Months, Retry Window)</label>
-              <input type="number" id="inseminationIntervalMonths" name="inseminationIntervalMonths" value="<%= (settings.inseminationIntervalMonths || 3) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+              <label for="inseminationIntervalDays">Insemination Interval (Days, Retry Window)</label>
+              <input type="number" id="inseminationIntervalDays" name="inseminationIntervalDays" value="<%= (settings.inseminationIntervalDays || (settings.inseminationIntervalMonths ? settings.inseminationIntervalMonths*30 : 90)) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
             </div>
           </fieldset>
 
@@ -70,17 +70,41 @@
               <label for="changeFeedAlertBeforeDays">Change Feed Alert Before (Days)</label>
               <input type="number" id="changeFeedAlertBeforeDays" name="changeFeedAlertBeforeDays" value="1" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
             </div>
+            <div class="field">
+              <label for="pregnancyCheckAlertBeforeDays">Pregnancy Check Alert Before (Days)</label>
+              <input type="number" id="pregnancyCheckAlertBeforeDays" name="pregnancyCheckAlertBeforeDays" value="<%= (settings.pregnancyCheckAlertBeforeDays || 3) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="inseminationAlertBeforeDays">Insemination Alert Before (Days)</label>
+              <input type="number" id="inseminationAlertBeforeDays" name="inseminationAlertBeforeDays" value="<%= (settings.inseminationAlertBeforeDays || 0) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="graduationAlertBeforeDays">Graduation Alert Before (Days)</label>
+              <input type="number" id="graduationAlertBeforeDays" name="graduationAlertBeforeDays" value="<%= (settings.graduationAlertBeforeDays || 7) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="weaningAlertBeforeDays">Weaning Alert Before (Days)</label>
+              <input type="number" id="weaningAlertBeforeDays" name="weaningAlertBeforeDays" value="<%= (settings.weaningAlertBeforeDays || 7) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
           </fieldset>
 
           <fieldset style="border: none;">
             <legend style="font-weight: bold; margin-bottom: 10px;">Calf Management</legend>
             <div class="field">
-              <label for="femaleWeaningMonths">Female Weaning Age (Months)</label>
-              <input type="number" id="femaleWeaningMonths" name="femaleWeaningMonths" value="<%= (settings.femaleWeaningMonths || 14) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+              <label for="femaleWeaningDays">Female Weaning (Days)</label>
+              <input type="number" id="femaleWeaningDays" name="femaleWeaningDays" value="<%= (settings.femaleWeaningDays != null ? settings.femaleWeaningDays : (settings.weaningDays || 180)) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
             </div>
             <div class="field">
-              <label for="maleWeaningMonths">Male Weaning Age (Months)</label>
-              <input type="number" id="maleWeaningMonths" name="maleWeaningMonths" value="<%= (settings.maleWeaningMonths || 8) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+              <label for="maleWeaningDays">Male Weaning (Days)</label>
+              <input type="number" id="maleWeaningDays" name="maleWeaningDays" value="<%= (settings.maleWeaningDays != null ? settings.maleWeaningDays : (settings.weaningDays || 180)) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="femaleMaturityMonths">Female: Calf → Cow (Months)</label>
+              <input type="number" id="femaleMaturityMonths" name="femaleMaturityMonths" value="<%= (settings.femaleMaturityMonths || 24) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+            <div class="field">
+              <label for="maleMaturityMonths">Male: Calf → Bull (Months)</label>
+              <input type="number" id="maleMaturityMonths" name="maleMaturityMonths" value="<%= (settings.maleMaturityMonths || 24) %>" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
             </div>
             <div class="field">
               <label for="maleSellAgeMonths">Male Calf/Bull Sell Age (Months)</label>
@@ -122,13 +146,21 @@
           dryOffAfterSuccessfulInsemDays: settings.dryOffAfterSuccessfulInsemDays,
           changeFeedAfterSuccessfulInsemDays: settings.changeFeedAfterSuccessfulInsemDays,
           postpartumInseminationStartDays: (settings.postpartumInseminationStartDays || 60),
-          inseminationIntervalMonths: (settings.inseminationIntervalMonths || 3),
-          bullSellAgeMonths: (settings.bullSellAgeMonths || 24)
+          inseminationIntervalDays: (settings.inseminationIntervalDays || (settings.inseminationIntervalMonths ? settings.inseminationIntervalMonths*30 : 90)),
+          bullSellAgeMonths: (settings.bullSellAgeMonths || 24),
+          femaleWeaningDays: (settings.femaleWeaningDays != null ? settings.femaleWeaningDays : (settings.weaningDays || 180)),
+          maleWeaningDays: (settings.maleWeaningDays != null ? settings.maleWeaningDays : (settings.weaningDays || 180)),
+          femaleMaturityMonths: (settings.femaleMaturityMonths || 24),
+          maleMaturityMonths: (settings.maleMaturityMonths || 24)
         }) %>`);
         // Dynamic alert lead times read from form inputs (not persisted yet server-side)
-        exposedSettings.calvingAlertBeforeDays = parseInt(document.getElementById('calvingAlertBeforeDays').value || '10',10);
-        exposedSettings.dryOffAlertBeforeDays = parseInt(document.getElementById('dryOffAlertBeforeDays').value || '1',10);
-        exposedSettings.changeFeedAlertBeforeDays = parseInt(document.getElementById('changeFeedAlertBeforeDays').value || '1',10);
+        exposedSettings.calvingAlertBeforeDays = parseInt(document.getElementById('calvingAlertBeforeDays').value || String(<%= settings.calvingAlertBeforeDays || 10 %>),10);
+        exposedSettings.dryOffAlertBeforeDays = parseInt(document.getElementById('dryOffAlertBeforeDays').value || String(<%= settings.dryOffAlertBeforeDays || 1 %>),10);
+        exposedSettings.changeFeedAlertBeforeDays = parseInt(document.getElementById('changeFeedAlertBeforeDays').value || String(<%= settings.changeFeedAlertBeforeDays || 1 %>),10);
+        exposedSettings.pregnancyCheckAlertBeforeDays = parseInt(document.getElementById('pregnancyCheckAlertBeforeDays').value || String(<%= settings.pregnancyCheckAlertBeforeDays || 3 %>),10);
+        exposedSettings.inseminationAlertBeforeDays = parseInt(document.getElementById('inseminationAlertBeforeDays').value || String(<%= settings.inseminationAlertBeforeDays || 0 %>),10);
+        exposedSettings.graduationAlertBeforeDays = parseInt(document.getElementById('graduationAlertBeforeDays').value || String(<%= settings.graduationAlertBeforeDays || 7 %>),10);
+        exposedSettings.weaningAlertBeforeDays = parseInt(document.getElementById('weaningAlertBeforeDays').value || String(<%= settings.weaningAlertBeforeDays || 7 %>),10);
         localStorage.setItem('sweetcow_settings', JSON.stringify(exposedSettings));
       } catch(e) { console.warn('Could not persist settings locally', e); }
 
