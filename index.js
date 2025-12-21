@@ -13,7 +13,7 @@ const app = express();
 const PORT = 3000;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/sweetcow', {
+mongoose.connect(process.env.mongoURI || `mongodb://localhost:27017/`, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
