@@ -456,8 +456,8 @@ app.get('/settings', async (req, res) => {
             });
             await settings.save();
         }
-        // Migration: convert legacy month-based interval if present and day value missing
-        if (!settings.inseminationIntervalDays && settings.inseminationIntervalMonths) {
+        // Migration: convert legacy month-based interval if present and day value missing (preserve 0)
+        if (settings.inseminationIntervalDays == null && settings.inseminationIntervalMonths != null) {
             const months = settings.inseminationIntervalMonths;
             // Approximate conversion: 1 month = 30 days (domain-specific simplification)
             settings.inseminationIntervalDays = months * 30;
