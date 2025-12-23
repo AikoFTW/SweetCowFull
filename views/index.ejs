@@ -76,8 +76,8 @@
           <div class="card" style="min-height:280px;">
           <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <h2 style="margin:0;">Weekly Tasks</h2>
-              <small class="section-sub">Alerts are shown in Alerts; tasks here are due on their day.</small>
+              <h2 style="margin:0;">Weekly Alerts</h2>
+              <small class="section-sub">Alerts by alert date; event date shown.</small>
             </div>
             <div id="filters" style="margin-left:auto;display:flex;align-items:center;">
               <button id="toggleFilters" class="btn muted" type="button" style="padding:6px 12px;">Filter</button>
@@ -122,7 +122,7 @@
             </div>
           </div>
           <div id="weekGrid" class="calendar-grid" style="gap:8px;">
-            <% (A.week || []).forEach(function(day){ %>
+            <% (A.weekAlerts || A.week || []).forEach(function(day){ %>
               <% var __day = new Date(day.date); var __isToday = (__day.getFullYear()===__y && __day.getMonth()===__m && __day.getDate()===__d); %>
               <div class="day-card <%= __isToday ? 'today' : '' %> card" style="padding:10px;min-height:120px;display:flex;flex-direction:column;gap:8px;">
                 <div style="font-weight:700;font-size:.8rem;color:#495057;"><%= new Date(day.date).toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' }) %></div>
@@ -137,7 +137,7 @@
                       <span class="dot <%= colorMap[it.type] ? ('type-' + it.type) : 'type-default' %>" style="width:8px;height:8px;border-radius:999px;"></span>
                       <div style="display:flex;flex-direction:column;">
                         <div style="font-weight:700;font-size:.8rem;color:#212529;"><%= it.label %></div>
-                        <div style="font-size:.7rem;color:#6c757d;">for <a href="/profile/<%= it.entity.type %>/<%= it.entity.id %>"><%= it.entity.name %></a> • <%= new Date(it.when).toLocaleDateString() %></div>
+                        <div style="font-size:.7rem;color:#6c757d;">for <a href="/profile/<%= it.entity.type %>/<%= it.entity.id %>"><%= it.entity.name %></a> • Alert: <%= new Date(day.date).toLocaleDateString() %> • Event: <%= new Date(it.when).toLocaleDateString() %></div>
                       </div>
                     </div>
                   <% }); %>
@@ -173,7 +173,7 @@
               <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
             </div>
             <div class="calendar-grid">
-              <% const __monthDue = (A.monthDue || A.month || {}); const monthDays = __monthDue.days || []; const __offset = (typeof __monthDue.year==='number' && typeof __monthDue.monthIndex==='number') ? new Date(__monthDue.year, __monthDue.monthIndex, 1).getDay() : 0; %>
+              <% const __month = (A.month || A.monthDue || {}); const monthDays = __month.days || []; const __offset = (typeof __month.year==='number' && typeof __month.monthIndex==='number') ? new Date(__month.year, __month.monthIndex, 1).getDay() : 0; %>
               <% for (var k=0;k<__offset;k++){ %>
                 <div class="calendar-day empty" style="background:#f8f9fa;opacity:.4;"></div>
               <% } %>
@@ -234,7 +234,7 @@
       const closeSidebar = document.querySelectorAll('.close-sidebar');
       const colorMapJS = { calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545', weaning:'#0ea5e9' };
       let alertsState = JSON.parse((document.getElementById('alertsData') && document.getElementById('alertsData').textContent) || '{}');
-      let selectedMonth = { year: (alertsState.monthDue&&alertsState.monthDue.year) || (alertsState.month&&alertsState.month.year) || new Date().getFullYear(), monthIndex: (alertsState.monthDue&&alertsState.monthDue.monthIndex) || (alertsState.month&&alertsState.month.monthIndex) || new Date().getMonth() };
+      let selectedMonth = { year: (alertsState.month&&alertsState.month.year) || (alertsState.monthDue&&alertsState.monthDue.year) || new Date().getFullYear(), monthIndex: (alertsState.month&&alertsState.month.monthIndex) || (alertsState.monthDue&&alertsState.monthDue.monthIndex) || new Date().getMonth() };
       let selectedAnchor = null; // { y, m, d } for locally-selected day
       let completedMap = new Map(); // key 'YYYY-MM-DD' -> array of confirmations
       let nextMonthState = null; // cache next month's alerts for Upcoming spanning months
@@ -346,11 +346,11 @@
             const r = await fetch(`/alerts?anchor=${anchor}`);
             if(!r.ok){ console.warn('alerts fetch failed', r.status); return; }
             const data = await r.json(); alertsState = data;
-            selectedMonth.year = (data.monthDue&&data.monthDue.year) || (data.month&&data.month.year) || selectedMonth.year;
-            selectedMonth.monthIndex = (data.monthDue&&data.monthDue.monthIndex) || (data.month&&data.month.monthIndex) || selectedMonth.monthIndex;
+            selectedMonth.year = (data.month&&data.month.year) || (data.monthDue&&data.monthDue.year) || selectedMonth.year;
+            selectedMonth.monthIndex = (data.month&&data.month.monthIndex) || (data.monthDue&&data.monthDue.monthIndex) || selectedMonth.monthIndex;
             setMonthTitle();
             if(isShowCompleted()){ await loadCompletedWeek(); await loadCompletedMonth(); } else { completedMap = new Map(); }
-            renderWeek(data.week);
+            renderWeek(data.weekAlerts || data.week);
             renderPastDue();
             renderCalendar();
             await prefetchNextMonth();
@@ -428,7 +428,7 @@
           const cal = document.querySelector('#calendarCard .calendar-grid');
           const today = new Date();
           if(!cal) return;
-          const month = (alertsState && alertsState.monthDue) ? alertsState.monthDue : ((alertsState && alertsState.month) ? alertsState.month : { year: today.getFullYear(), monthIndex: today.getMonth(), days: [] });
+          const month = (alertsState && alertsState.month) ? alertsState.month : ((alertsState && alertsState.monthDue) ? alertsState.monthDue : { year: today.getFullYear(), monthIndex: today.getMonth(), days: [] });
           const days = Array.isArray(month.days) ? month.days : [];
           const isThisMonth = (typeof month.year==='number' && typeof month.monthIndex==='number') ? (month.year===today.getFullYear() && month.monthIndex===today.getMonth()) : true;
           const offset = (typeof month.year==='number' && typeof month.monthIndex==='number') ? new Date(month.year, month.monthIndex, 1).getDay() : 0;
@@ -487,11 +487,11 @@
         fetchAlerts(initialAnchor);
         // Filters
         document.querySelectorAll('#filterPanel .flt').forEach(ch=>{
-          ch.addEventListener('change', ()=>{ saveTypes(); renderWeek(alertsState.week); renderPastDue(); renderCalendar(); renderUpcoming(); });
+          ch.addEventListener('change', ()=>{ saveTypes(); renderWeek(alertsState.weekAlerts || alertsState.week); renderPastDue(); renderCalendar(); renderUpcoming(); });
         });
         // Recompute upcoming when navigating months
         const showCompletedEl = document.getElementById('showCompleted');
-        if(showCompletedEl){ showCompletedEl.addEventListener('change', async ()=>{ try{ localStorage.setItem(STORE_COMPLETED, showCompletedEl.checked?'1':'0'); }catch(_){} if(isShowCompleted()){ await loadCompletedWeek(); await loadCompletedMonth(); } else { completedMap = new Map(); } renderWeek(alertsState.week); renderCalendar(); }); }
+        if(showCompletedEl){ showCompletedEl.addEventListener('change', async ()=>{ try{ localStorage.setItem(STORE_COMPLETED, showCompletedEl.checked?'1':'0'); }catch(_){} if(isShowCompleted()){ await loadCompletedWeek(); await loadCompletedMonth(); } else { completedMap = new Map(); } renderWeek(alertsState.weekAlerts || alertsState.week); renderCalendar(); }); }
         // Prev/Next month
         document.getElementById('prevMonth').addEventListener('click', ()=>{
           const y = selectedMonth.year; const m = selectedMonth.monthIndex; const newDate = new Date(y, m-1, 1); selectedMonth.year=newDate.getFullYear(); selectedMonth.monthIndex=newDate.getMonth(); setMonthTitle(); selectedAnchor = { y:selectedMonth.year, m:selectedMonth.monthIndex, d:1 }; fetchAlerts(fmt(selectedMonth.year, selectedMonth.monthIndex, 1));

@@ -318,6 +318,8 @@ function buildAlerts({ cows, calves, settings, insems, confirmations }, anchorDa
     // Derive weekly buckets and month markers
     const weekDays = []; for(let i=0;i<7;i++){ const d=new Date(startOfWeek); d.setDate(d.getDate()+i); d.setHours(0,0,0,0); weekDays.push(d); }
     const week = weekDays.map(d=> ({ date: d, items: [] }));
+    // Week by alertDate (for weekly alerts display)
+    const weekAlerts = weekDays.map(d=> ({ date: d, items: [] }));
     const monthDays = []; const totalDays=endOfMonth.getDate(); for(let i=1;i<=totalDays;i++){ monthDays.push({ day:i, items:[] }); }
     const monthDueDays = []; for(let i=1;i<=totalDays;i++){ monthDueDays.push({ day:i, items:[] }); }
     for(const ev of filtered){
@@ -327,6 +329,8 @@ function buildAlerts({ cows, calves, settings, insems, confirmations }, anchorDa
         if(ev.when >= startOfMonth && ev.when <= endOfMonth){ const di = new Date(ev.when).getDate(); monthDueDays[di-1].items.push(ev); }
         // Weekly: tasks due on their event date (when)
         if(ev.when >= startOfWeek && ev.when < endOfWeek){ const wi = Math.floor((ev.when - startOfWeek)/(1000*60*60*24)); if(week[wi]) week[wi].items.push(ev); }
+        // Weekly alerts: alerts occurring on their alertDate
+        if(ev.alertDate >= startOfWeek && ev.alertDate < endOfWeek){ const wai = Math.floor((ev.alertDate - startOfWeek)/(1000*60*60*24)); if(weekAlerts[wai]) weekAlerts[wai].items.push(ev); }
     }
     // Past due: alerts whose alertDate is before the real current day (not anchor)
     const realTodayStart = new Date(); realTodayStart.setHours(0,0,0,0);
@@ -335,6 +339,7 @@ function buildAlerts({ cows, calves, settings, insems, confirmations }, anchorDa
             .slice(0,100);
     return { 
         week, 
+        weekAlerts,
         month: { year: now.getFullYear(), monthIndex: now.getMonth(), days: monthDays },
         monthDue: { year: now.getFullYear(), monthIndex: now.getMonth(), days: monthDueDays },
         pastDue 
@@ -619,6 +624,10 @@ app.post('/profile/:type/:id/upload-image', upload.single('image'), async (req, 
 // Extended reproduction computation covering cycle windows and management dates.
 function buildPregnancyInfo(cow, settings, insems){
     const now = new Date();
+    // Date helpers to compute day deltas without time-of-day/DST drift
+    const DAY_MS = 24*60*60*1000;
+    const toUTCYMD = (d)=> Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    const daysBetween = (futureOrPastDate, refDate)=> Math.round((toUTCYMD(futureOrPastDate) - toUTCYMD(refDate))/DAY_MS);
     const gestationDays = settings?.gestationDays || 283;
     const dryOffDays = settings?.dryOffAfterSuccessfulInsemDays || 220;
     const changeFeedDays = settings?.changeFeedAfterSuccessfulInsemDays || 260;
@@ -649,24 +658,24 @@ function buildPregnancyInfo(cow, settings, insems){
             estCalving = new Date(latestDate); estCalving.setDate(estCalving.getDate() + gestationDays);
             dryOffDate = new Date(latestDate); dryOffDate.setDate(dryOffDate.getDate() + dryOffDays);
             changeFeedDate = new Date(latestDate); changeFeedDate.setDate(changeFeedDate.getDate() + changeFeedDays);
-            daysUntilCalving = Math.ceil((estCalving - now)/(1000*60*60*24));
-            daysUntilDryOff = Math.ceil((dryOffDate - now)/(1000*60*60*24));
-            daysUntilChangeFeed = Math.ceil((changeFeedDate - now)/(1000*60*60*24));
-            daysUntilConception = Math.ceil((conceptionDate - now)/(1000*60*60*24));
+            daysUntilCalving = daysBetween(estCalving, now);
+            daysUntilDryOff = daysBetween(dryOffDate, now);
+            daysUntilChangeFeed = daysBetween(changeFeedDate, now);
+            daysUntilConception = daysBetween(conceptionDate, now);
         } else if (latest.failed) {
             // Failed attempt: cycle re-opens, earliest next attempt after retry window end
             status = 'Open';
             const retryBase = new Date(latestDate);
             retryBase.setDate(retryBase.getDate() + retryIntervalDays);
             nextInseminationEarliest = retryBase;
-            daysUntilLatestInsemination = Math.ceil((latestDate - now)/(1000*60*60*24));
+            daysUntilLatestInsemination = daysBetween(latestDate, now);
         } else {
             status = 'Pending';
             // retry window end = latest + retryMonths months
             retryWindowEnd = new Date(latestDate);
             retryWindowEnd.setDate(retryWindowEnd.getDate() + retryIntervalDays);
-            daysUntilRetryWindowEnd = Math.ceil((retryWindowEnd - now)/(1000*60*60*24));
-            daysUntilLatestInsemination = Math.ceil((latestDate - now)/(1000*60*60*24));
+            daysUntilRetryWindowEnd = daysBetween(retryWindowEnd, now);
+            daysUntilLatestInsemination = daysBetween(latestDate, now);
         }
         // If a calving was recorded after conception (pregnancy completed), reopen.
         if (status === 'Pregnant' && lastCalving && conceptionDate && lastCalving > conceptionDate){
@@ -691,9 +700,9 @@ function buildPregnancyInfo(cow, settings, insems){
     }
     const canAddInseminationNow = status === 'Open' && (!nextInseminationEarliest || now >= nextInseminationEarliest);
     const canRetryNow = status === 'Pending' && retryWindowEnd && now >= retryWindowEnd;
-    const daysUntilNextInseminationEarliest = nextInseminationEarliest ? Math.ceil((nextInseminationEarliest - now)/(1000*60*60*24)) : null;
-    if (cow.lastCalving){ const lc=new Date(cow.lastCalving); daysUntilLastCalving = Math.ceil((lc - now)/(1000*60*60*24)); }
-    if (latest){ daysUntilLatestInsemination = Math.ceil((new Date(latest.date) - now)/(1000*60*60*24)); }
+    const daysUntilNextInseminationEarliest = nextInseminationEarliest ? daysBetween(nextInseminationEarliest, now) : null;
+    if (cow.lastCalving){ const lc=new Date(cow.lastCalving); daysUntilLastCalving = daysBetween(lc, now); }
+    if (latest){ daysUntilLatestInsemination = daysBetween(new Date(latest.date), now); }
     const canConfirmNow = status === 'Pending' && retryWindowEnd && now >= retryWindowEnd;
     return {
         status,
