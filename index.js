@@ -316,7 +316,15 @@ function buildAlerts({ cows, calves, settings, insems, confirmations }, anchorDa
     const confirmed = new Set((confirmations||[]).filter(c=> !c.undone).map(c=> `${c.entityType}:${String(c.entityId)}:${c.type}:${new Date(c.when).toISOString().slice(0,10)}`));
     const filtered = events.filter(e=> !confirmed.has(confKey(e)));
     // Derive weekly buckets and month markers
-    const weekDays = []; for(let i=0;i<7;i++){ const d=new Date(startOfWeek); d.setDate(d.getDate()+i); d.setHours(0,0,0,0); weekDays.push(d); }
+    // Build week day buckets using local midday to avoid UTC JSON shift to previous/next day
+    const weekDays = [];
+    for(let i=0;i<7;i++){
+        const d = new Date(startOfWeek);
+        d.setDate(d.getDate()+i);
+        const uiDate = new Date(d);
+        uiDate.setHours(12,0,0,0); // use 12:00 local time for stable client rendering
+        weekDays.push(uiDate);
+    }
     const week = weekDays.map(d=> ({ date: d, items: [] }));
     // Week by alertDate (for weekly alerts display)
     const weekAlerts = weekDays.map(d=> ({ date: d, items: [] }));

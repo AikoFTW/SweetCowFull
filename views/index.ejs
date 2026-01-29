@@ -62,15 +62,7 @@
               <% } %>
             </div>
           </div>
-          <div id="upcomingTasksBox" class="card" style="min-height:240px;">
-            <div class="section-header" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <h2 style="margin:0;">Upcoming Tasks</h2>
-                <small class="section-sub">Tasks due in the next 21 days.</small>
-              </div>
-            </div>
-            <div id="upcomingTasksList"><div style="opacity:.6;font-size:.85rem;">No upcoming tasks</div></div>
-          </div>
+          
         </div>
         <div>
           <div class="card" style="min-height:280px;">
@@ -394,36 +386,7 @@
             </div>
             `)).join('') : '<div style="opacity:.6;font-size:.85rem;">No alerts</div>';
         }
-          function getDueTasksForDate(date){
-            const y=date.getFullYear(); const m=date.getMonth(); const d=date.getDate();
-            const pickDue = (state)=>{ const monthDue=(state&&state.monthDue)||{}; const days=monthDue.days||[]; const hit=days.find(x=> x.day===d); return hit? (hit.items||[]) : []; };
-            if(alertsState.monthDue && alertsState.monthDue.year===y && alertsState.monthDue.monthIndex===m){ return pickDue(alertsState); }
-            if(nextMonthState && nextMonthState.monthDue && nextMonthState.monthDue.year===y && nextMonthState.monthDue.monthIndex===m){ return pickDue(nextMonthState); }
-            return [];
-          }
-          function renderUpcomingTasks(){
-            const box = document.getElementById('upcomingTasksList'); if(!box) return;
-            const today = new Date(); const allow = new Set(activeTypes());
-            const upcoming = [];
-            for(let i=0;i<21;i++){
-              const day = new Date(today.getFullYear(), today.getMonth(), today.getDate()+i);
-              const items = getDueTasksForDate(day).filter(it=> allow.has(it.type));
-              for(const it of items){ upcoming.push({ dueDate: day, item: it }); }
-            }
-            upcoming.sort((a,b)=> a.dueDate - b.dueDate);
-            const list = upcoming.slice(0, 25);
-            box.innerHTML = list.length ? list.map(({dueDate,item})=> (`
-              <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
-                <span class="dot ${colorMapJS[item.type] ? ('type-' + item.type) : 'type-default'}" style="width:8px;height:8px;border-radius:999px;"></span>
-                <div style="display:flex;flex-direction:column;">
-                  <div style="font-weight:700;font-size:.85rem;color:#212529;">${item.label} — <a href="/profile/${item.entity.type}/${item.entity.id}">${item.entity.name}</a></div>
-                  <div style="font-size:.7rem;color:#6c757d;">Due: ${dueDate.toLocaleDateString(undefined,{ weekday:'short', month:'short', day:'numeric' })}</div>
-                </div>
-              </div>
-            `)).join('') : '<div style="opacity:.6;font-size:.85rem;">No upcoming tasks</div>';
-          }
-                    renderUpcomingTasks();
-          renderUpcomingTasks();
+          
         function renderCalendar(){
           const cal = document.querySelector('#calendarCard .calendar-grid');
           const today = new Date();
