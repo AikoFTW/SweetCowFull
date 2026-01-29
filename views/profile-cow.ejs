@@ -346,63 +346,7 @@
         }).catch(err=>{ console.warn('nav fetch error', err); if(prevBtn) prevBtn.disabled=true; if(nextBtn) nextBtn.disabled=true; });
       }
     })();
-    // Lineage rendering (matches API: { nodes, edges })
-    (function initLineage(){
-      const container=document.getElementById('lineageGraph');
-      const loading=document.getElementById('lineageLoading');
-      if(!container) return;
-      const rootId='<%= cow._id %>';
-      function colorFor(type){
-        if(type==='cow') return '#d1e7dd';
-        if(type==='bull') return '#e0cffc';
-        if(type==='calf') return '#fff3cd';
-        return '#f8f9fa';
-      }
-      function makeNode(n){
-        const el=document.createElement('div');
-        el.className='lineage-node';
-        el.dataset.id=n._id; el.dataset.type=n.type;
-        el.style.cssText='position:absolute;min-width:90px;max-width:160px;padding:6px 8px;border-radius:8px;border:1px solid #adb5bd;background:'+colorFor(n.type)+';font-size:.6rem;line-height:1.2;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.08);';
-        const title=(n.label||n.name||n.number||'—');
-        el.innerHTML='<strong style="display:block;font-size:.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+title+'</strong>'+'<span style="opacity:.65;text-transform:capitalize;">'+n.type+(n._id===rootId?' • this':'')+'</span>';
-        el.onclick=()=> window.location.href='/profile/'+n.type+'/'+n._id;
-        return el;
-      }
-      function layoutGraph(data){
-        container.innerHTML='';
-        const width=container.clientWidth; const rowH=110;
-        // Build adjacency and BFS layers
-        const adj=new Map();
-        data.edges.forEach(e=>{ if(!adj.has(e.from)) adj.set(e.from, new Set()); if(!adj.has(e.to)) adj.set(e.to, new Set()); adj.get(e.from).add(e.to); adj.get(e.to).add(e.from); });
-        const nodesById=new Map(data.nodes.map(n=>[n._id,n]));
-        const visited=new Set([rootId]); const layers=[[rootId]]; let frontier=[rootId]; const maxDepth=4;
-        for(let d=1; d<=maxDepth; d++){
-          const next=[]; frontier.forEach(id=>{ (adj.get(id)||[]).forEach(nb=>{ if(!visited.has(nb)){ visited.add(nb); next.push(nb);} }); });
-          if(!next.length) break; layers.push(next); frontier=next;
-        }
-        const totalH = layers.length*rowH + 20; container.style.height=totalH+'px';
-        const placed=new Map();
-        layers.forEach((layer,idx)=>{
-          const y = idx*rowH + 10; const count=layer.length;
-          layer.forEach((id,i)=>{
-            const n=nodesById.get(id); if(!n) return;
-            const x=((i+1)/(count+1))*width; const el=makeNode(n); el.style.left=(x-70)+'px'; el.style.top=y+'px'; container.appendChild(el); placed.set(id, el);
-          });
-        });
-        // Draw edges
-        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('width','100%'); svg.setAttribute('height',totalH);
-        svg.style.position='absolute'; svg.style.inset='0'; svg.style.pointerEvents='none';
-        function center(el){ return { x: el.offsetLeft + el.offsetWidth/2, y: el.offsetTop + el.offsetHeight/2 } }
-        data.edges.forEach(e=>{
-          const a=placed.get(e.from), b=placed.get(e.to); if(!a||!b) return;
-          const pa=center(a), pb=center(b); const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-          line.setAttribute('x1',pa.x); line.setAttribute('y1',pa.y); line.setAttribute('x2',pb.x); line.setAttribute('y2',pb.y); line.setAttribute('stroke','#b0b7c3'); line.setAttribute('stroke-width','1.2'); svg.appendChild(line);
-        });
-        container.appendChild(svg);
-      }
-      fetch('/lineage/cow/'+rootId).then(r=> r.json()).then(data=>{ loading.style.display='none'; container.style.display='block'; layoutGraph(data); })
-        .catch(err=>{ loading.textContent='Failed to load lineage'; console.error('lineage fetch error', err); });
-    })();
+    
   </script>
   <script>
     // Profile Due Tasks + Confirmation Log (cow)
@@ -413,7 +357,8 @@
       const refreshBtn=document.getElementById('refreshDueTasks');
       const openLogBtn=document.getElementById('openConfirmLog');
       const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545' };
-      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      // Anchor helper uses local midday to avoid UTC parsing issues
+      function fmtAnchor(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}T12:00:00`; }
       async function fetchAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
       function filterTasks(A){
         // Build a unique key per event: entity + type + event date (when)
@@ -473,7 +418,7 @@
         });
       }
       async function load(){
-        try{ const today=new Date(); const A=await fetchAlerts(ymd(today)); const tasks=filterTasks(A); render(tasks); }catch(_){ if(body) body.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load tasks</div>'; }
+        try{ const today=new Date(); const A=await fetchAlerts(fmtAnchor(today)); const tasks=filterTasks(A); render(tasks); }catch(_){ if(body) body.innerHTML='<div style="opacity:.6;font-size:.85rem;">Failed to load tasks</div>'; }
       }
       refreshBtn && (refreshBtn.onclick=load);
       openLogBtn && (openLogBtn.onclick= async ()=>{
@@ -522,7 +467,8 @@
       const tasksBody = document.getElementById('cowUpcomingTasksBody');
       const alertsBody = document.getElementById('cowAlertsBody');
       const colors={ calving:'#0d6efd', dryOff:'#20c997', changeFeed:'#fd7e14', pregnancyCheck:'#6f42c1', insemination:'#198754', graduation:'#dc3545', weaning:'#0ea5e9' };
-      function ymd(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}`; }
+      // Use local midday anchor to avoid UTC month/day shifts
+      function fmtAnchor(d){ const dt=new Date(d); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${m}-${dd}T12:00:00`; }
       async function fetchAlerts(anchor){ const r=await fetch(`/alerts?anchor=${anchor}`); if(!r.ok) throw new Error('alerts'); return r.json(); }
       let current=null, next=null;
       function pickMonth(state, y, m, useDue){ const key = useDue? 'monthDue':'month'; const mon=(state&&state[key])||{}; if(mon.year===y && mon.monthIndex===m) return mon; return null; }
@@ -542,7 +488,7 @@
       function* nextDays(n){ const today=new Date(); for(let i=0;i<n;i++){ yield new Date(today.getFullYear(), today.getMonth(), today.getDate()+i); } }
       async function load(){
         try{
-          const today=new Date(); current = await fetchAlerts(ymd(today)); const nm = new Date(today.getFullYear(), today.getMonth()+1, 1); next = await fetchAlerts(ymd(nm));
+          const today=new Date(); current = await fetchAlerts(fmtAnchor(today)); const nm = new Date(today.getFullYear(), today.getMonth()+1, 1); next = await fetchAlerts(fmtAnchor(nm));
           const tasks=[]; const alerts=[]; const allowId=String(entityId);
           for(const day of nextDays(21)){
             const y=day.getFullYear(), m=day.getMonth(), d=day.getDate();
