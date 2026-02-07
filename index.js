@@ -641,6 +641,413 @@ app.post('/settings', async (req, res) => {
     }
 });
 
+// ========== IMPORT/EXPORT ENDPOINTS ==========
+
+// Export all data (settings, cows, bulls, calves, history)
+app.get('/export/all', async (req, res) => {
+    try {
+        const [settings, cows, bulls, calves, inseminations, confirmations, audits] = await Promise.all([
+            Settings.findOne().lean(),
+            Cow.find().lean(),
+            Bull.find().lean(),
+            Calf.find().lean(),
+            Insemination.find().lean(),
+            Confirmation.find().lean(),
+            Audit.find().lean(),
+        ]);
+        
+        // Embed inseminations, audits, and confirmations within each cow
+        const cowsWithHistory = cows.map(cow => {
+            const cowIdStr = String(cow._id);
+            return {
+                ...cow,
+                _inseminations: inseminations.filter(i => String(i.cowId) === cowIdStr),
+                _audits: audits.filter(a => String(a.cowId) === cowIdStr),
+                _confirmations: confirmations.filter(c => c.entityType === 'cow' && String(c.entityId) === cowIdStr),
+            };
+        });
+        
+        // Embed confirmations within each bull
+        const bullsWithHistory = bulls.map(bull => {
+            const bullIdStr = String(bull._id);
+            return {
+                ...bull,
+                _confirmations: confirmations.filter(c => c.entityType === 'bull' && String(c.entityId) === bullIdStr),
+            };
+        });
+        
+        // Embed confirmations within each calf
+        const calvesWithHistory = calves.map(calf => {
+            const calfIdStr = String(calf._id);
+            return {
+                ...calf,
+                _confirmations: confirmations.filter(c => c.entityType === 'calf' && String(c.entityId) === calfIdStr),
+            };
+        });
+        
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            settings: settings || {},
+            cows: cowsWithHistory,
+            bulls: bullsWithHistory,
+            calves: calvesWithHistory,
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="sweetcow-backup-${new Date().toISOString().slice(0,10)}.json"`);
+        res.json(exportData);
+    } catch (err) {
+        console.error('Export error:', err);
+        res.status(500).json({ error: 'Export failed' });
+    }
+});
+
+// Export settings only
+app.get('/export/settings', async (req, res) => {
+    try {
+        const settings = await Settings.findOne().lean();
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            type: 'settings',
+            settings: settings || {},
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="sweetcow-settings-${new Date().toISOString().slice(0,10)}.json"`);
+        res.json(exportData);
+    } catch (err) {
+        console.error('Export settings error:', err);
+        res.status(500).json({ error: 'Export failed' });
+    }
+});
+
+// Export cows with history
+app.get('/export/cows', async (req, res) => {
+    try {
+        const [cows, inseminations, audits, confirmations] = await Promise.all([
+            Cow.find().lean(),
+            Insemination.find().lean(),
+            Audit.find().lean(),
+            Confirmation.find({ entityType: 'cow' }).lean(),
+        ]);
+        // Map inseminations and audits to each cow
+        const cowsWithHistory = cows.map(cow => {
+            const cowIdStr = String(cow._id);
+            return {
+                ...cow,
+                _inseminations: inseminations.filter(i => String(i.cowId) === cowIdStr),
+                _audits: audits.filter(a => String(a.cowId) === cowIdStr),
+                _confirmations: confirmations.filter(c => String(c.entityId) === cowIdStr),
+            };
+        });
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            type: 'cows',
+            cows: cowsWithHistory,
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="sweetcow-cows-${new Date().toISOString().slice(0,10)}.json"`);
+        res.json(exportData);
+    } catch (err) {
+        console.error('Export cows error:', err);
+        res.status(500).json({ error: 'Export failed' });
+    }
+});
+
+// Export bulls with history
+app.get('/export/bulls', async (req, res) => {
+    try {
+        const [bulls, confirmations] = await Promise.all([
+            Bull.find().lean(),
+            Confirmation.find({ entityType: 'bull' }).lean(),
+        ]);
+        const bullsWithHistory = bulls.map(bull => {
+            const bullIdStr = String(bull._id);
+            return {
+                ...bull,
+                _confirmations: confirmations.filter(c => String(c.entityId) === bullIdStr),
+            };
+        });
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            type: 'bulls',
+            bulls: bullsWithHistory,
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="sweetcow-bulls-${new Date().toISOString().slice(0,10)}.json"`);
+        res.json(exportData);
+    } catch (err) {
+        console.error('Export bulls error:', err);
+        res.status(500).json({ error: 'Export failed' });
+    }
+});
+
+// Export calves with history
+app.get('/export/calves', async (req, res) => {
+    try {
+        const [calves, confirmations] = await Promise.all([
+            Calf.find().lean(),
+            Confirmation.find({ entityType: 'calf' }).lean(),
+        ]);
+        const calvesWithHistory = calves.map(calf => {
+            const calfIdStr = String(calf._id);
+            return {
+                ...calf,
+                _confirmations: confirmations.filter(c => String(c.entityId) === calfIdStr),
+            };
+        });
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            type: 'calves',
+            calves: calvesWithHistory,
+        };
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="sweetcow-calves-${new Date().toISOString().slice(0,10)}.json"`);
+        res.json(exportData);
+    } catch (err) {
+        console.error('Export calves error:', err);
+        res.status(500).json({ error: 'Export failed' });
+    }
+});
+
+// Preview import to detect duplicates
+app.post('/import/preview', express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+        const data = req.body;
+        if (!data || !data.version) {
+            return res.status(400).json({ error: 'Invalid import file format' });
+        }
+        const result = { settings: null, cows: [], bulls: [], calves: [] };
+        
+        // Check settings
+        if (data.settings && Object.keys(data.settings).length > 0) {
+            const existing = await Settings.findOne().lean();
+            result.settings = { incoming: data.settings, existing: existing || null, hasConflict: !!existing };
+        }
+        
+        // Check cows (match by cowNumber)
+        if (data.cows && data.cows.length > 0) {
+            const existingCows = await Cow.find().lean();
+            const existingByNumber = new Map(existingCows.filter(c => c.cowNumber).map(c => [c.cowNumber, c]));
+            for (const cow of data.cows) {
+                const existing = cow.cowNumber ? existingByNumber.get(cow.cowNumber) : null;
+                result.cows.push({
+                    incoming: cow,
+                    existing: existing || null,
+                    hasConflict: !!existing,
+                    identifier: cow.cowNumber || cow.cowName || 'Unknown Cow',
+                });
+            }
+        }
+        
+        // Check bulls (match by bullNumber)
+        if (data.bulls && data.bulls.length > 0) {
+            const existingBulls = await Bull.find().lean();
+            const existingByNumber = new Map(existingBulls.filter(b => b.bullNumber).map(b => [b.bullNumber, b]));
+            for (const bull of data.bulls) {
+                const existing = bull.bullNumber ? existingByNumber.get(bull.bullNumber) : null;
+                result.bulls.push({
+                    incoming: bull,
+                    existing: existing || null,
+                    hasConflict: !!existing,
+                    identifier: bull.bullNumber || bull.bullName || 'Unknown Bull',
+                });
+            }
+        }
+        
+        // Check calves (match by calfName + birthDate)
+        if (data.calves && data.calves.length > 0) {
+            const existingCalves = await Calf.find().lean();
+            const existingByKey = new Map(existingCalves.map(c => {
+                const key = `${c.calfName || ''}_${c.birthDate ? new Date(c.birthDate).toISOString().slice(0,10) : ''}`;
+                return [key, c];
+            }));
+            for (const calf of data.calves) {
+                const key = `${calf.calfName || ''}_${calf.birthDate ? new Date(calf.birthDate).toISOString().slice(0,10) : ''}`;
+                const existing = existingByKey.get(key);
+                result.calves.push({
+                    incoming: calf,
+                    existing: existing || null,
+                    hasConflict: !!existing,
+                    identifier: calf.calfName || 'Unknown Calf',
+                });
+            }
+        }
+        
+        res.json(result);
+    } catch (err) {
+        console.error('Import preview error:', err);
+        res.status(500).json({ error: 'Preview failed' });
+    }
+});
+
+// Execute import with decisions
+app.post('/import/execute', express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+        const { data, decisions } = req.body;
+        // decisions: { settings: 'skip'|'replace', cows: { [identifier]: 'skip'|'replace' }, bulls: {...}, calves: {...} }
+        if (!data || !data.version) {
+            return res.status(400).json({ error: 'Invalid import data' });
+        }
+        
+        const stats = { settings: false, cows: { added: 0, replaced: 0, skipped: 0 }, bulls: { added: 0, replaced: 0, skipped: 0 }, calves: { added: 0, replaced: 0, skipped: 0 } };
+        
+        // Import settings
+        if (data.settings && Object.keys(data.settings).length > 0) {
+            const settingsDecision = decisions?.settings || 'skip';
+            if (settingsDecision === 'replace') {
+                const { _id, __v, ...settingsData } = data.settings;
+                await Settings.findOneAndUpdate({}, settingsData, { upsert: true });
+                stats.settings = true;
+            }
+        }
+        
+        // Import cows
+        if (data.cows && data.cows.length > 0) {
+            const existingCows = await Cow.find().lean();
+            const existingByNumber = new Map(existingCows.filter(c => c.cowNumber).map(c => [c.cowNumber, c]));
+            
+            for (const cowData of data.cows) {
+                const identifier = cowData.cowNumber || cowData.cowName || 'Unknown Cow';
+                const decision = decisions?.cows?.[identifier] || 'add';
+                const existing = cowData.cowNumber ? existingByNumber.get(cowData.cowNumber) : null;
+                
+                // Extract embedded history
+                const { _id, __v, _inseminations, _audits, _confirmations, ...cowFields } = cowData;
+                
+                if (existing) {
+                    if (decision === 'replace') {
+                        const updated = await Cow.findByIdAndUpdate(existing._id, cowFields, { new: true });
+                        // Import related history for this cow
+                        if (_inseminations && _inseminations.length > 0) {
+                            await Insemination.deleteMany({ cowId: updated._id });
+                            for (const insem of _inseminations) {
+                                const { _id: iid, __v: iv, ...insemData } = insem;
+                                await Insemination.create({ ...insemData, cowId: updated._id });
+                            }
+                        }
+                        // Import audits
+                        if (_audits && _audits.length > 0) {
+                            await Audit.deleteMany({ cowId: updated._id });
+                            for (const audit of _audits) {
+                                const { _id: aid, __v: av, ...auditData } = audit;
+                                await Audit.create({ ...auditData, cowId: updated._id });
+                            }
+                        }
+                        stats.cows.replaced++;
+                    } else {
+                        stats.cows.skipped++;
+                    }
+                } else {
+                    const created = await Cow.create(cowFields);
+                    // Import related history
+                    if (_inseminations && _inseminations.length > 0) {
+                        for (const insem of _inseminations) {
+                            const { _id: iid, __v: iv, cowId: oldCowId, ...insemData } = insem;
+                            await Insemination.create({ ...insemData, cowId: created._id });
+                        }
+                    }
+                    // Import audits
+                    if (_audits && _audits.length > 0) {
+                        for (const audit of _audits) {
+                            const { _id: aid, __v: av, cowId: oldCowId, ...auditData } = audit;
+                            await Audit.create({ ...auditData, cowId: created._id });
+                        }
+                    }
+                    stats.cows.added++;
+                }
+            }
+        }
+        
+        // Import bulls
+        if (data.bulls && data.bulls.length > 0) {
+            const existingBulls = await Bull.find().lean();
+            const existingByNumber = new Map(existingBulls.filter(b => b.bullNumber).map(b => [b.bullNumber, b]));
+            
+            for (const bullData of data.bulls) {
+                const identifier = bullData.bullNumber || bullData.bullName || 'Unknown Bull';
+                const decision = decisions?.bulls?.[identifier] || 'add';
+                const existing = bullData.bullNumber ? existingByNumber.get(bullData.bullNumber) : null;
+                
+                const { _id, __v, _confirmations, ...bullFields } = bullData;
+                
+                if (existing) {
+                    if (decision === 'replace') {
+                        await Bull.findByIdAndUpdate(existing._id, bullFields);
+                        stats.bulls.replaced++;
+                    } else {
+                        stats.bulls.skipped++;
+                    }
+                } else {
+                    await Bull.create(bullFields);
+                    stats.bulls.added++;
+                }
+            }
+        }
+        
+        // Import calves
+        if (data.calves && data.calves.length > 0) {
+            const existingCalves = await Calf.find().lean();
+            const existingByKey = new Map(existingCalves.map(c => {
+                const key = `${c.calfName || ''}_${c.birthDate ? new Date(c.birthDate).toISOString().slice(0,10) : ''}`;
+                return [key, c];
+            }));
+            
+            for (const calfData of data.calves) {
+                const identifier = calfData.calfName || 'Unknown Calf';
+                const decision = decisions?.calves?.[identifier] || 'add';
+                const key = `${calfData.calfName || ''}_${calfData.birthDate ? new Date(calfData.birthDate).toISOString().slice(0,10) : ''}`;
+                const existing = existingByKey.get(key);
+                
+                const { _id, __v, _confirmations, ...calfFields } = calfData;
+                
+                if (existing) {
+                    if (decision === 'replace') {
+                        await Calf.findByIdAndUpdate(existing._id, calfFields);
+                        stats.calves.replaced++;
+                    } else {
+                        stats.calves.skipped++;
+                    }
+                } else {
+                    await Calf.create(calfFields);
+                    stats.calves.added++;
+                }
+            }
+        }
+        
+        // Handle legacy format: root-level inseminations array (for backward compatibility)
+        if (data.inseminations && Array.isArray(data.inseminations) && data.inseminations.length > 0) {
+            // Map old cow IDs to new cow IDs based on cowNumber
+            const allCows = await Cow.find().lean();
+            const cowByNumber = new Map(allCows.filter(c => c.cowNumber).map(c => [c.cowNumber, c]));
+            
+            for (const insemData of data.inseminations) {
+                // Try to find the cow this insemination belongs to
+                // First check if cow was imported and we can find it by old cowId reference
+                const cowIdStr = insemData.cowId ? String(insemData.cowId) : null;
+                const matchingCowInImport = data.cows?.find(c => String(c._id) === cowIdStr);
+                const targetCowNumber = matchingCowInImport?.cowNumber;
+                const targetCow = targetCowNumber ? cowByNumber.get(targetCowNumber) : null;
+                
+                if (targetCow) {
+                    const { _id, __v, cowId, ...insemFields } = insemData;
+                    await Insemination.create({ ...insemFields, cowId: targetCow._id });
+                }
+            }
+        }
+        
+        res.json({ success: true, stats });
+    } catch (err) {
+        console.error('Import execute error:', err);
+        res.status(500).json({ error: 'Import failed: ' + err.message });
+    }
+});
+
+// ========== END IMPORT/EXPORT ==========
+
 // Route for Cattle Registry
 app.get('/cattle-registry', async (req, res) => {
     try {
