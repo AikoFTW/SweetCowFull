@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            <% if (community && community.theme) { %>
+            --primary-color: <%= community.theme.primaryColor || '#108044' %>;
+            --secondary-color: <%= community.theme.secondaryColor || '#064430' %>;
+            --accent-color: <%= community.theme.accentColor || '#d0f0c0' %>;
+            <% } %>
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .settings-nav {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        .settings-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .settings-nav li {
+            margin-bottom: 4px;
+        }
+        .settings-nav a {
+            display: block;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--ink);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .settings-nav a:hover,
+        .settings-nav a.active {
+            background: var(--accent-color, #d0f0c0);
+            color: var(--secondary-color, var(--green-700));
+        }
+        .settings-content {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+        }
+        .settings-section {
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .settings-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .settings-section h2 {
+            margin: 0 0 8px;
+            font-size: 1.2rem;
+        }
+        .settings-section p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0 0 20px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #dce8eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color, var(--green-700));
+            box-shadow: 0 0 0 3px rgba(16, 128, 68, 0.15);
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .form-group small {
+            display: block;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .form-group input[type="color"] {
+            padding: 4px;
+            height: 48px;
+            cursor: pointer;
+        }
+        .color-preview {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        .color-swatch {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.75rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/community/dashboard">Farm Stats</a></li>
+            <li><a href="/community/members">Members</a></li>
+            <li><a href="/community/settings" class="active">Farm Settings</a></li>
+            <li><a href="/community/data">Import/Export</a></li>
+            <li><a href="/cattle-registry">Cattle Registry</a></li>
+            <% if (user && user.role === 'SuperAdmin') { %>
+            <li><a href="/admin">Super Admin</a></li>
+            <% } %>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (<%= userRole %>)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <div>
+                <h1>Farm Settings</h1>
+                <p style="margin: 4px 0 0; color: #6c757d; font-size: 0.9rem;"><%= community.name %></p>
+            </div>
+        </div>
+
+        <% if (success) { %>
+        <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div class="settings-grid">
+            <nav class="settings-nav">
+                <ul>
+                    <li><a href="#general" class="active">General</a></li>
+                    <li><a href="#contact">Contact Info</a></li>
+                    <li><a href="#theme">Appearance</a></li>
+                    <li><a href="#cattle">Cattle Settings</a></li>
+                    <li><a href="#access">Access Control</a></li>
+                </ul>
+            </nav>
+
+            <div class="settings-content">
+                <!-- General Settings -->
+                <form method="POST" action="/community/settings">
+                    <section class="settings-section" id="general">
+                        <h2>General Information</h2>
+                        <p>Basic information about your farm.</p>
+
+                        <div class="form-group">
+                            <label for="name">Farm Name</label>
+                            <input 
+                                type="text" 
+                                id="name" 
+                                name="name" 
+                                value="<%= community.name %>"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea 
+                                id="description" 
+                                name="description"
+                                placeholder="Brief description of your farm..."
+                            ><%= community.description || '' %></textarea>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" id="contact">
+                        <h2>Contact Information</h2>
+                        <p>How people can reach your farm.</p>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contactEmail">Email</label>
+                                <input 
+                                    type="email" 
+                                    id="contactEmail" 
+                                    name="contactEmail" 
+                                    value="<%= community.contactEmail || '' %>"
+                                    placeholder="farm@example.com"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="contactPhone">Phone</label>
+                                <input 
+                                    type="tel" 
+                                    id="contactPhone" 
+                                    name="contactPhone" 
+                                    value="<%= community.contactPhone || '' %>"
+                                    placeholder="+1 (555) 000-0000"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="street">Street Address</label>
+                            <input 
+                                type="text" 
+                                id="street" 
+                                name="street" 
+                                value="<%= community.address?.street || '' %>"
+                                placeholder="123 Farm Road"
+                            >
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="city">City</label>
+                                <input 
+                                    type="text" 
+                                    id="city" 
+                                    name="city" 
+                                    value="<%= community.address?.city || '' %>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="state">State/Province</label>
+                                <input 
+                                    type="text" 
+                                    id="state" 
+                                    name="state" 
+                                    value="<%= community.address?.state || '' %>"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="country">Country</label>
+                                <input 
+                                    type="text" 
+                                    id="country" 
+                                    name="country" 
+                                    value="<%= community.address?.country || '' %>"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="postalCode">Postal Code</label>
+                                <input 
+                                    type="text" 
+                                    id="postalCode" 
+                                    name="postalCode" 
+                                    value="<%= community.address?.postalCode || '' %>"
+                                >
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" id="theme">
+                        <h2>Appearance</h2>
+                        <p>Customize your farm's color scheme.</p>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="primaryColor">Primary Color</label>
+                                <input 
+                                    type="color" 
+                                    id="primaryColor" 
+                                    name="primaryColor" 
+                                    value="<%= community.theme?.primaryColor || '#108044' %>"
+                                >
+                                <small>Main brand color</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="secondaryColor">Secondary Color</label>
+                                <input 
+                                    type="color" 
+                                    id="secondaryColor" 
+                                    name="secondaryColor" 
+                                    value="<%= community.theme?.secondaryColor || '#064430' %>"
+                                >
+                                <small>Darker accent</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="accentColor">Accent Color</label>
+                                <input 
+                                    type="color" 
+                                    id="accentColor" 
+                                    name="accentColor" 
+                                    value="<%= community.theme?.accentColor || '#d0f0c0' %>"
+                                >
+                                <small>Highlights & backgrounds</small>
+                            </div>
+                        </div>
+
+                        <div class="color-preview">
+                            <div class="color-swatch" id="primarySwatch" style="background: <%= community.theme?.primaryColor || '#108044' %>">Primary</div>
+                            <div class="color-swatch" id="secondarySwatch" style="background: <%= community.theme?.secondaryColor || '#064430' %>">Secondary</div>
+                            <div class="color-swatch" id="accentSwatch" style="background: <%= community.theme?.accentColor || '#d0f0c0' %>; color: #333;">Accent</div>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" id="access">
+                        <h2>Access Control</h2>
+                        <p>Control who can join your farm.</p>
+
+                        <label class="checkbox-group">
+                            <input 
+                                type="checkbox" 
+                                name="allowMemberInvites" 
+                                <%= community.settings?.allowMemberInvites ? 'checked' : '' %>
+                            >
+                            <span>Allow members to invite others</span>
+                        </label>
+
+                        <label class="checkbox-group">
+                            <input 
+                                type="checkbox" 
+                                name="requireApproval" 
+                                <%= community.settings?.requireApproval !== false ? 'checked' : '' %>
+                            >
+                            <span>Require admin approval for new members</span>
+                        </label>
+
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="maxMembers">Maximum Members</label>
+                            <input 
+                                type="number" 
+                                id="maxMembers" 
+                                name="maxMembers" 
+                                value="<%= community.settings?.maxMembers || 50 %>"
+                                min="1"
+                                max="1000"
+                            >
+                        </div>
+                    </section>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn primary">Save Changes</button>
+                    </div>
+                </form>
+
+                <!-- Cattle Settings (separate form) -->
+                <form method="POST" action="/community/settings/cattle" style="margin-top: 40px; padding-top: 32px; border-top: 1px solid #f1f5f9;">
+                    <section class="settings-section" id="cattle">
+                        <h2>Cattle Management Settings</h2>
+                        <p>Configure timing and alerts for cattle management.</p>
+
+                        <h3 style="font-size: 1rem; margin: 24px 0 16px; color: var(--primary-color, var(--green-700));">Pregnancy & Calving</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="gestationDays">Gestation Days</label>
+                                <input 
+                                    type="number" 
+                                    id="gestationDays" 
+                                    name="gestationDays" 
+                                    value="<%= community.cattleSettings?.gestationDays || 283 %>"
+                                    min="200"
+                                    max="320"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="postpartumInseminationStartDays">Days After Calving to Inseminate</label>
+                                <input 
+                                    type="number" 
+                                    id="postpartumInseminationStartDays" 
+                                    name="postpartumInseminationStartDays" 
+                                    value="<%= community.cattleSettings?.postpartumInseminationStartDays || 45 %>"
+                                    min="20"
+                                    max="120"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dryOffAfterSuccessfulInsemDays">Dry Off Days After Insemination</label>
+                                <input 
+                                    type="number" 
+                                    id="dryOffAfterSuccessfulInsemDays" 
+                                    name="dryOffAfterSuccessfulInsemDays" 
+                                    value="<%= community.cattleSettings?.dryOffAfterSuccessfulInsemDays || 220 %>"
+                                    min="180"
+                                    max="280"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="changeFeedAfterSuccessfulInsemDays">Change Feed Days After Insemination</label>
+                                <input 
+                                    type="number" 
+                                    id="changeFeedAfterSuccessfulInsemDays" 
+                                    name="changeFeedAfterSuccessfulInsemDays" 
+                                    value="<%= community.cattleSettings?.changeFeedAfterSuccessfulInsemDays || 210 %>"
+                                    min="150"
+                                    max="270"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="inseminationIntervalDays">Insemination Interval (days)</label>
+                            <input 
+                                type="number" 
+                                id="inseminationIntervalDays" 
+                                name="inseminationIntervalDays" 
+                                value="<%= community.cattleSettings?.inseminationIntervalDays || 21 %>"
+                                min="14"
+                                max="45"
+                            >
+                            <small>Days between insemination attempts</small>
+                        </div>
+
+                        <h3 style="font-size: 1rem; margin: 24px 0 16px; color: var(--primary-color, var(--green-700));">Alert Lead Times (days before event)</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="calvingAlertBeforeDays">Calving Alert</label>
+                                <input 
+                                    type="number" 
+                                    id="calvingAlertBeforeDays" 
+                                    name="calvingAlertBeforeDays" 
+                                    value="<%= community.cattleSettings?.calvingAlertBeforeDays || 7 %>"
+                                    min="1"
+                                    max="30"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="dryOffAlertBeforeDays">Dry Off Alert</label>
+                                <input 
+                                    type="number" 
+                                    id="dryOffAlertBeforeDays" 
+                                    name="dryOffAlertBeforeDays" 
+                                    value="<%= community.cattleSettings?.dryOffAlertBeforeDays || 7 %>"
+                                    min="1"
+                                    max="30"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="inseminationAlertBeforeDays">Insemination Alert</label>
+                                <input 
+                                    type="number" 
+                                    id="inseminationAlertBeforeDays" 
+                                    name="inseminationAlertBeforeDays" 
+                                    value="<%= community.cattleSettings?.inseminationAlertBeforeDays || 7 %>"
+                                    min="1"
+                                    max="30"
+                                >
+                            </div>
+                        </div>
+
+                        <h3 style="font-size: 1rem; margin: 24px 0 16px; color: var(--primary-color, var(--green-700));">Calf Management</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="femaleWeaningDays">Female Weaning Days</label>
+                                <input 
+                                    type="number" 
+                                    id="femaleWeaningDays" 
+                                    name="femaleWeaningDays" 
+                                    value="<%= community.cattleSettings?.femaleWeaningDays || 60 %>"
+                                    min="30"
+                                    max="180"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="maleWeaningDays">Male Weaning Days</label>
+                                <input 
+                                    type="number" 
+                                    id="maleWeaningDays" 
+                                    name="maleWeaningDays" 
+                                    value="<%= community.cattleSettings?.maleWeaningDays || 60 %>"
+                                    min="30"
+                                    max="180"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="femaleMaturityMonths">Female Maturity (months)</label>
+                                <input 
+                                    type="number" 
+                                    id="femaleMaturityMonths" 
+                                    name="femaleMaturityMonths" 
+                                    value="<%= community.cattleSettings?.femaleMaturityMonths || 24 %>"
+                                    min="12"
+                                    max="48"
+                                >
+                                <small>Age when female calf graduates to cow</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="maleMaturityMonths">Male Maturity (months)</label>
+                                <input 
+                                    type="number" 
+                                    id="maleMaturityMonths" 
+                                    name="maleMaturityMonths" 
+                                    value="<%= community.cattleSettings?.maleMaturityMonths || 24 %>"
+                                    min="12"
+                                    max="48"
+                                >
+                                <small>Age when male calf graduates to bull</small>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn primary">Save Cattle Settings</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+
+        // Color preview
+        document.getElementById('primaryColor').addEventListener('input', function() {
+            document.getElementById('primarySwatch').style.background = this.value;
+        });
+        document.getElementById('secondaryColor').addEventListener('input', function() {
+            document.getElementById('secondarySwatch').style.background = this.value;
+        });
+        document.getElementById('accentColor').addEventListener('input', function() {
+            document.getElementById('accentSwatch').style.background = this.value;
+        });
+
+        // Settings nav highlighting
+        document.querySelectorAll('.settings-nav a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                document.querySelectorAll('.settings-nav a').forEach(a => a.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

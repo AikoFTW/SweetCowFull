@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Community - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, var(--milk), #e9f7f3 35%, #f6fbfd);
+        }
+        .select-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+        }
+        .select-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 40px;
+        }
+        .select-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .select-header img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .select-header h1 {
+            margin: 0 0 8px;
+            font-size: 1.5rem;
+            color: var(--ink);
+        }
+        .select-header p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+        .community-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .community-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border: 1px solid #e5eef0;
+            border-radius: 12px;
+            background: #f8fafb;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .community-item:hover {
+            border-color: var(--green-700);
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(16, 128, 68, 0.1);
+        }
+        .community-info h3 {
+            margin: 0 0 4px;
+            font-size: 1rem;
+            color: var(--ink);
+        }
+        .community-info span {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-admin {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .badge-member {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .no-communities {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        .logout-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .logout-link a {
+            color: var(--green-700);
+            text-decoration: none;
+        }
+        .logout-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="select-container">
+        <div class="select-card">
+            <div class="select-header">
+                <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+                <h1>Select Your Farm</h1>
+                <p>Choose which farm you want to access</p>
+            </div>
+
+            <% if (memberships && memberships.length > 0) { %>
+                <div class="community-list">
+                    <% memberships.forEach(function(m) { %>
+                        <form method="POST" action="/auth/switch-community" style="margin: 0;">
+                            <input type="hidden" name="communityId" value="<%= m.community._id %>">
+                            <button type="submit" class="community-item" style="width: 100%; text-align: left; border: 1px solid #e5eef0;">
+                                <div class="community-info">
+                                    <h3><%= m.community.name %></h3>
+                                    <span>Joined <%= new Date(m.joinedAt).toLocaleDateString() %></span>
+                                </div>
+                                <span class="badge <%= m.role === 'Admin' ? 'badge-admin' : 'badge-member' %>">
+                                    <%= m.role %>
+                                </span>
+                            </button>
+                        </form>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="no-communities">
+                    <p>You are not a member of any farms yet.</p>
+                    <p>Please contact an administrator to be added to a farm.</p>
+                </div>
+            <% } %>
+
+            <div class="logout-link">
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

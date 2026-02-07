@@ -9,6 +9,12 @@ const fs = require('fs');
 const multer = require('multer');
 // Insemination model not used in current registry view
 
+// Auth imports
+const { loadUser, isAuthenticated, isMember, getCommunityFilter } = require('./middleware/auth');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const communityRoutes = require('./routes/community');
+
 const app = express();
 const PORT = 3000;
 
@@ -26,6 +32,7 @@ db.once('open', () => {
 
 // Define schemas
 const cowSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     cowNumber: String,
     cowName: String,
     race: String,
@@ -43,6 +50,7 @@ const cowSchema = new mongoose.Schema({
 });
 
 const calfSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     calfName: { type: String, required: true },
     calfBreed: { type: String, required: true },
     birthDate: { type: Date, required: true },
@@ -64,6 +72,7 @@ const calfSchema = new mongoose.Schema({
 });
 
 const bullSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     bullNumber: String,
     bullName: String,
     race: String,
@@ -84,6 +93,7 @@ const bullSchema = new mongoose.Schema({
 // A simple structure: which cow, when, and whether pregnancy was confirmed.
 // Future enhancements could add technician, method, dose id, etc.
 const inseminationSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     cowId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cow', required: true },
     date: { type: Date, required: true },
     confirmedPregnant: { type: Boolean, default: false },
@@ -93,6 +103,8 @@ const inseminationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const settingsSchema = new mongoose.Schema({
+    // Community-scoped settings (each farm has its own settings)
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     // Core cow timing
     gestationDays: Number,
     dryOffAfterSuccessfulInsemDays: Number,
@@ -132,6 +144,7 @@ const Bull = mongoose.model('Bull', bullSchema);
 const Settings = mongoose.model('Settings', settingsSchema);
 // Confirmation records for alert/task acknowledgements with undo
 const confirmationSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     entityType: { type: String, enum: ['cow','calf','bull'], required: true },
     entityId: { type: mongoose.Schema.Types.ObjectId, required: true },
     type: { type: String, required: true }, // 'calving','dryOff','changeFeed','pregnancyCheck','insemination','graduation'
@@ -145,6 +158,7 @@ const Cattle = require('./models/cattle');
 const Insemination = mongoose.model('Insemination', inseminationSchema);
 // Audit log model (inline for simplicity)
 const auditSchema = new mongoose.Schema({
+    community: { type: mongoose.Schema.Types.ObjectId, ref: 'Community', index: true },
     cowId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cow', index: true },
     inseminationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Insemination' },
     action: { type: String, required: true }, // e.g., 'insemination.add','insemination.forced','insemination.delete','insemination.confirm','insemination.fail','insemination.unconfirm','cow.calving.set','cow.calving.clear'
@@ -172,7 +186,7 @@ async function autoGraduateCalves(){
             const months = Math.floor((now - new Date(k.birthDate)) / (1000*60*60*24*30));
             const threshold = k.gender==='female' ? femaleMonths : maleMonths;
             if (months < threshold) continue;
-            // Build adult doc
+            // Build adult doc - inherit community from calf
             let adult=null, adultType=null;
             if (k.gender==='female'){
                 adultType='cow';
@@ -188,7 +202,8 @@ async function autoGraduateCalves(){
                     motherCowBreed: k.motherCowBreed || '',
                     sireBullNumber: k.sireBullNumber || '',
                     sireBullName: k.sireBullName || '',
-                    sireBullBreed: k.sireBullBreed || ''
+                    sireBullBreed: k.sireBullBreed || '',
+                    community: k.community || null
                 });
             } else {
                 adultType='bull';
@@ -204,13 +219,14 @@ async function autoGraduateCalves(){
                     motherCowBreed: k.motherCowBreed || '',
                     sireBullNumber: k.sireBullNumber || '',
                     sireBullName: k.sireBullName || '',
-                    sireBullBreed: k.sireBullBreed || ''
+                    sireBullBreed: k.sireBullBreed || '',
+                    community: k.community || null
                 });
             }
             await Calf.findByIdAndUpdate(k._id, { graduated: true, graduatedAt: now, adultType, adultId: adult._id });
-            // Link to mother cow history if available
-            let mother=null; if(k.motherCowNumber){ mother = await Cow.findOne({ cowNumber: k.motherCowNumber }).lean(); }
-            if (mother){ await logAudit({ cowId: mother._id, action:'calf.graduate', actor:'system', payload:{ calfId: k._id, calfName: k.calfName || '', gender: k.gender, adultType, adultId: adult._id } }); }
+            // Link to mother cow history if available - use same community filter
+            let mother=null; if(k.motherCowNumber && k.community){ mother = await Cow.findOne({ cowNumber: k.motherCowNumber, community: k.community }).lean(); }
+            if (mother){ await logAudit({ cowId: mother._id, action:'calf.graduate', actor:'system', payload:{ calfId: k._id, calfName: k.calfName || '', gender: k.gender, adultType, adultId: adult._id }, community: k.community || null }); }
             promotedCount++;
         }
         return { promoted: promotedCount };
@@ -231,8 +247,11 @@ app.use(session({
     secret: process.env.OVERRIDE_SESSION_SECRET || 'dev-override-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 30 } // 30 minutes
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } // 7 days for auth sessions
 }));
+
+// Load user into request context
+app.use(loadUser);
 
 // Expose override flag to templates
 app.use((req,res,next)=>{
@@ -246,19 +265,47 @@ app.use((req, res, next) => {
     next();
 });
 
+// Auth routes (login, register, logout) - no auth required
+app.use('/auth', authRoutes);
+
+// Admin routes (SuperAdmin only)
+app.use('/admin', adminRoutes);
+
+// Community routes (Admin/Owner of community)
+app.use('/community', communityRoutes);
+
+// Select community page
+app.get('/select-community', isAuthenticated, async (req, res) => {
+    const User = require('./models/user');
+    const user = await User.findById(req.session.userId)
+        .populate('memberships.community')
+        .lean();
+    res.render('select-community', { 
+        title: 'Select Community', 
+        memberships: user.memberships || [] 
+    });
+});
+
+// All remaining routes require authentication
+app.use(isAuthenticated);
+app.use(isMember);
+
 // Replace mock data with database queries
 app.get('/', async (req, res) => {
     try {
+        // Build community filter - SuperAdmin sees all, others see only their community
+        const communityFilter = getCommunityFilter(req);
+        
         const [cows, calves, bulls, settings, insems, confirms] = await Promise.all([
-            Cow.find().lean(),
-            Calf.find().lean(),
-            Bull.find().lean(),
-            Settings.findOne().lean(),
-            Insemination.find().lean(),
-            Confirmation.find({ undone: { $ne: true } }).lean(),
+            Cow.find(communityFilter).lean(),
+            Calf.find(communityFilter).lean(),
+            Bull.find(communityFilter).lean(),
+            Settings.findOne(communityFilter).lean(),
+            Insemination.find(communityFilter).lean(),
+            Confirmation.find({ ...communityFilter, undone: { $ne: true } }).lean(),
         ]);
         const alerts = buildAlerts({ cows, calves, bulls, settings, insems, confirmations: confirms });
-        res.render('index', { title: 'SweetCow Dashboard', cows, calves, bulls, alerts });
+        res.render('index', { title: 'FermaTech Dashboard', cows, calves, bulls, alerts });
     } catch (error) {
         console.error('Error fetching data:', error);
         res.status(500).send('Internal Server Error');
@@ -357,9 +404,15 @@ function buildAlerts({ cows, calves, settings, insems, confirmations }, anchorDa
 // Alerts API to support dynamic week switching
 app.get('/alerts', async (req,res)=>{
     try{
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const anchor = req.query.anchor; const when = anchor ? new Date(anchor) : new Date();
         const [cows, calves, settings, insems, confirms] = await Promise.all([
-            Cow.find().lean(), Calf.find().lean(), Settings.findOne().lean(), Insemination.find().lean(), Confirmation.find({ undone: { $ne: true } }).lean()
+            Cow.find(communityFilter).lean(), 
+            Calf.find(communityFilter).lean(), 
+            Settings.findOne(communityFilter).lean(), 
+            Insemination.find(communityFilter).lean(), 
+            Confirmation.find({ ...communityFilter, undone: { $ne: true } }).lean()
         ]);
         const data = buildAlerts({ cows, calves, settings, insems, confirmations: confirms }, when);
         res.json(data);
@@ -373,35 +426,59 @@ app.post('/confirmation', async (req,res)=>{
         if(!entityType || !entityId || !type || !when) return res.status(400).json({ error:'Missing fields' });
         if(!['cow','calf','bull'].includes(entityType)) return res.status(400).json({ error:'Invalid entityType' });
         if(!mongoose.isValidObjectId(entityId)) return res.status(400).json({ error:'Invalid entityId' });
-        const doc = await Confirmation.create({ entityType, entityId, type, when:new Date(when), alertOn: alertOn? new Date(alertOn): undefined, note: note||'' });
+        // Add community for data isolation
+        const doc = await Confirmation.create({ 
+            community: req.communityId || null,
+            entityType, entityId, type, 
+            when:new Date(when), 
+            alertOn: alertOn? new Date(alertOn): undefined, 
+            note: note||'' 
+        });
         return res.status(201).json(doc);
     }catch(err){ console.error('confirmation create error', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
 
 app.post('/confirmation/:id/undo', async (req,res)=>{
-    try{ const { id }=req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid id' }); const doc = await Confirmation.findByIdAndUpdate(id, { undone: true }, { new:true }); if(!doc) return res.status(404).json({ error:'Not found' }); res.json(doc); }catch(err){ console.error('confirmation undo error', err); res.status(500).json({ error:'Internal Server Error' }); }
+    try{ 
+        const { id }=req.params; 
+        if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid id' }); 
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const doc = await Confirmation.findOneAndUpdate({ _id: id, ...communityFilter }, { undone: true }, { new:true }); 
+        if(!doc) return res.status(404).json({ error:'Not found' }); 
+        res.json(doc); 
+    }catch(err){ console.error('confirmation undo error', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
 
 app.get('/confirmations', async (req,res)=>{
-    try{ const { entityType, entityId } = req.query; if(!entityType || !entityId) return res.status(400).json({ error:'Missing params' }); const list = await Confirmation.find({ entityType, entityId, }).sort({ createdAt:-1 }).lean(); res.json(list); }catch(err){ console.error('confirmations list error', err); res.status(500).json({ error:'Internal Server Error' }); }
+    try{ 
+        const { entityType, entityId } = req.query; 
+        if(!entityType || !entityId) return res.status(400).json({ error:'Missing params' }); 
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const list = await Confirmation.find({ ...communityFilter, entityType, entityId }).sort({ createdAt:-1 }).lean(); 
+        res.json(list); 
+    }catch(err){ console.error('confirmations list error', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
 
 // Range query for confirmations across all entities (for dashboard completed view)
 app.get('/confirmations-range', async (req,res)=>{
     try{
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const { from, to } = req.query;
         if(!from || !to) return res.status(400).json({ error:'Missing from/to' });
         const start = new Date(from+'T00:00:00');
         const end = new Date(to+'T23:59:59');
-        const list = await Confirmation.find({ undone: { $ne: true }, when: { $gte: start, $lte: end } }).lean();
+        const list = await Confirmation.find({ ...communityFilter, undone: { $ne: true }, when: { $gte: start, $lte: end } }).lean();
         // Enrich with entity names for display on dashboard
         const cowIds = [...new Set(list.filter(c=> c.entityType==='cow').map(c=> String(c.entityId)))];
         const calfIds = [...new Set(list.filter(c=> c.entityType==='calf').map(c=> String(c.entityId)))];
         const bullIds = [...new Set(list.filter(c=> c.entityType==='bull').map(c=> String(c.entityId)))];
         const [cowDocs, calfDocs, bullDocs] = await Promise.all([
-            cowIds.length? Cow.find({ _id: { $in: cowIds } }).select('cowName cowNumber').lean() : [],
-            calfIds.length? Calf.find({ _id: { $in: calfIds } }).select('calfName').lean() : [],
-            bullIds.length? Bull.find({ _id: { $in: bullIds } }).select('bullName bullNumber').lean() : [],
+            cowIds.length? Cow.find({ ...communityFilter, _id: { $in: cowIds } }).select('cowName cowNumber').lean() : [],
+            calfIds.length? Calf.find({ ...communityFilter, _id: { $in: calfIds } }).select('calfName').lean() : [],
+            bullIds.length? Bull.find({ ...communityFilter, _id: { $in: bullIds } }).select('bullName bullNumber').lean() : [],
         ]);
         const cowMap = new Map(cowDocs.map(d=> [String(d._id), (d.cowName || (d.cowNumber? ('#'+d.cowNumber) : 'Cow'))]));
         const calfMap = new Map(calfDocs.map(d=> [String(d._id), (d.calfName || 'Calf')]));
@@ -426,9 +503,11 @@ app.get('/cattle-management', (req, res) => {
 // Global cattle history: list all miscarriages and calf losses
 app.get('/cattle-management/history', async (req,res)=>{
     try{
-        const losses = await Calf.find({ status: { $in:['miscarriage','died'] } }).sort({ birthDate:-1 }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const losses = await Calf.find({ ...communityFilter, status: { $in:['miscarriage','died'] } }).sort({ birthDate:-1 }).lean();
         const motherNums = [...new Set(losses.map(l=> l.motherCowNumber).filter(Boolean))];
-        const mothersByNum = new Map((await Cow.find({ cowNumber: { $in: motherNums } }).lean()).map(c=> [c.cowNumber, c]));
+        const mothersByNum = new Map((await Cow.find({ ...communityFilter, cowNumber: { $in: motherNums } }).lean()).map(c=> [c.cowNumber, c]));
         const items = losses.map(l=> ({
             id: String(l._id),
             name: l.calfName,
@@ -444,9 +523,12 @@ app.get('/cattle-management/history', async (req,res)=>{
 // Route for Settings page
 app.get('/settings', async (req, res) => {
     try {
-        let settings = await Settings.findOne();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        let settings = await Settings.findOne(communityFilter);
         if (!settings) {
             settings = new Settings({
+                community: req.communityId || null,
                 gestationDays: 283,
                 dryOffAfterSuccessfulInsemDays: 220,
                 changeFeedAfterSuccessfulInsemDays: 260,
@@ -520,9 +602,13 @@ app.post('/settings', async (req, res) => {
           maleWeaningMonths,
           maleSellAgeMonths,
         } = req.body;
-        let settings = await Settings.findOne();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        let settings = await Settings.findOne(communityFilter);
         if (!settings) {
-            settings = new Settings();
+            settings = new Settings({
+                community: req.communityId || null
+            });
         }
         // Coerce numeric values safely
         const n = (v) => (v === undefined || v === null || v === '' ? undefined : Number(v));
@@ -558,9 +644,11 @@ app.post('/settings', async (req, res) => {
 // Route for Cattle Registry
 app.get('/cattle-registry', async (req, res) => {
     try {
-        const cows = await Cow.find();
-        const calves = await Calf.find();
-        const bulls = await Bull.find();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const cows = await Cow.find(communityFilter);
+        const calves = await Calf.find(communityFilter);
+        const bulls = await Bull.find(communityFilter);
         res.render('cattle-registry', { title: 'Cattle Registry', cows, calves, bulls });
     } catch (error) {
         console.error('Error fetching cattle data:', error);
@@ -571,12 +659,14 @@ app.get('/cattle-registry', async (req, res) => {
 // Route for Cattle Viewer
 app.get('/cattle-viewer', async (req, res) => {
     try {
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const [cows, calves, bulls, settings, insems] = await Promise.all([
-            Cow.find().lean(),
-            Calf.find().lean(),
-            Bull.find().lean(),
-            Settings.findOne().lean(),
-            Insemination.find().lean(),
+            Cow.find(communityFilter).lean(),
+            Calf.find(communityFilter).lean(),
+            Bull.find(communityFilter).lean(),
+            Settings.findOne(communityFilter).lean(),
+            Insemination.find(communityFilter).lean(),
         ]);
         res.render('cattle-viewer', { title: 'Cattle Viewer', cows, calves, bulls, settings, inseminations: insems });
     } catch (err) {
@@ -612,6 +702,8 @@ app.post('/profile/:type/:id/upload-image', upload.single('image'), async (req, 
     try {
         const { type, id } = req.params;
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         let Model;
         if (type === 'cow') Model = Cow;
         else if (type === 'bull') Model = Bull;
@@ -619,7 +711,7 @@ app.post('/profile/:type/:id/upload-image', upload.single('image'), async (req, 
         else return res.status(400).json({ error: 'Invalid type' });
 
         const urlPath = `/uploads/profiles/${req.file.filename}`;
-        const updated = await Model.findByIdAndUpdate(id, { profileImageUrl: urlPath }, { new: true }).lean();
+        const updated = await Model.findOneAndUpdate({ _id: id, ...communityFilter }, { profileImageUrl: urlPath }, { new: true }).lean();
         if (!updated) return res.status(404).json({ error: `${type} not found` });
         return res.json({ url: urlPath, item: updated });
     } catch (err) {
@@ -739,10 +831,12 @@ function buildPregnancyInfo(cow, settings, insems){
 
 app.get('/profile/cow/:id', async (req,res)=>{
     try {
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const [cow, settings, insems] = await Promise.all([
-            Cow.findById(req.params.id).lean(),
-            Settings.findOne().lean(),
-            Insemination.find({ cowId: req.params.id }).lean()
+            Cow.findOne({ _id: req.params.id, ...communityFilter }).lean(),
+            Settings.findOne(communityFilter).lean(),
+            Insemination.find({ cowId: req.params.id, ...communityFilter }).lean()
         ]);
         if (!cow) return res.status(404).send('Cow not found');
         const repro = buildPregnancyInfo(cow, settings, insems);
@@ -757,8 +851,10 @@ app.get('/cow/:id/history', async (req,res)=>{
     try{
         const { id } = req.params;
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         // Only return important events: pregnancies (confirm/unconfirm/fail) and calvings (set)
-        const audits = await Audit.find({ cowId:id }).sort({ createdAt:-1 }).lean();
+        const audits = await Audit.find({ cowId:id, ...communityFilter }).sort({ createdAt:-1 }).lean();
         const items = [];
         const allowedInsem = new Set(['insemination.confirm','insemination.unconfirm','insemination.fail']);
         for (const a of audits){
@@ -767,14 +863,14 @@ app.get('/cow/:id/history', async (req,res)=>{
                 items.push({ ...base, type:'insemination', details:a.payload||{} });
             } else if (a.action === 'cow.calving.set'){
                 let calf=null;
-                if (a.payload && a.payload.calfId){ try{ calf = await Calf.findById(a.payload.calfId).lean(); }catch(_){} }
+                if (a.payload && a.payload.calfId){ try{ calf = await Calf.findOne({ _id: a.payload.calfId, ...communityFilter }).lean(); }catch(_){} }
                 items.push({ ...base, type:'calving', details:a.payload||{}, calf: calf ? { id:String(calf._id), name: calf.calfName, status: calf.status, birthDate: calf.birthDate } : null });
             } else if (a.action === 'calf.graduate'){
                 // Graduation event: include created adult info
                 let adult=null;
                 if (a.payload && a.payload.adultId && a.payload.adultType){
                     try{
-                        adult = a.payload.adultType==='cow' ? await Cow.findById(a.payload.adultId).lean() : await Bull.findById(a.payload.adultId).lean();
+                        adult = a.payload.adultType==='cow' ? await Cow.findOne({ _id: a.payload.adultId, ...communityFilter }).lean() : await Bull.findOne({ _id: a.payload.adultId, ...communityFilter }).lean();
                     }catch(_){ }
                 }
                 items.push({ ...base, type:'graduate', details:a.payload||{}, adult: adult ? { id:String(adult._id), type:a.payload.adultType, name: adult.cowName || adult.bullName || '', number: adult.cowNumber || adult.bullNumber || '' } : null });
@@ -790,15 +886,19 @@ app.get('/cow/:id/losses', async (req,res)=>{
     try{
         const { id } = req.params;
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
-        const cow = await Cow.findById(id).lean(); if(!cow) return res.status(404).json({ error:'Cow not found' });
-        const calves = await Calf.find({ motherCowNumber: cow.cowNumber, status: { $in:['miscarriage','died'] } }).sort({ birthDate:-1 }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const cow = await Cow.findOne({ _id: id, ...communityFilter }).lean(); if(!cow) return res.status(404).json({ error:'Cow not found' });
+        const calves = await Calf.find({ motherCowNumber: cow.cowNumber, status: { $in:['miscarriage','died'] }, ...communityFilter }).sort({ birthDate:-1 }).lean();
         res.json({ items: calves.map(c=> ({ id:String(c._id), name:c.calfName, status:c.status, birthDate:c.birthDate })) });
     }catch(err){ console.error('Cow losses error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
 
 app.get('/profile/bull/:id', async (req,res)=>{
     try {
-        const bull = await Bull.findById(req.params.id).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const bull = await Bull.findOne({ _id: req.params.id, ...communityFilter }).lean();
         if (!bull) return res.status(404).send('Bull not found');
         res.render('profile-bull', { title:'Bull Profile', bull });
     } catch (err){ console.error(err); res.status(500).send('Internal Server Error'); }
@@ -808,8 +908,10 @@ app.get('/profile/bull/:id', async (req,res)=>{
 app.get('/bull/:id/history', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid bull id' });
-        const bull = await Bull.findById(id).lean(); if(!bull) return res.status(404).json({ error:'Bull not found' });
-        const fromCalves = await Calf.find({ adultType:'bull', adultId:id }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const bull = await Bull.findOne({ _id: id, ...communityFilter }).lean(); if(!bull) return res.status(404).json({ error:'Bull not found' });
+        const fromCalves = await Calf.find({ adultType:'bull', adultId:id, ...communityFilter }).lean();
         const items = (fromCalves||[]).map(k=> ({ type:'graduate', at: k.graduatedAt || k.birthDate || new Date(), details:{ fromCalfId: k._id, fromCalfName: k.calfName||'' } , calf: { id:String(k._id), name:k.calfName||'' } }));
         res.json({ items });
     }catch(err){ console.error('Bull history error:', err); res.status(500).json({ error:'Internal Server Error' }); }
@@ -842,11 +944,13 @@ setInterval(()=>{ autoGraduateCalves().catch(()=>{}); }, 24*60*60*1000);
 // Lookup by cow number (for lineage links)
 app.get('/profile/cow/number/:number', async (req,res)=>{
     try {
-        const cow = await Cow.findOne({ cowNumber: req.params.number }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const cow = await Cow.findOne({ cowNumber: req.params.number, ...communityFilter }).lean();
         if (!cow) return res.status(404).send('Cow not found');
         const [settings, insems] = await Promise.all([
-            Settings.findOne().lean(),
-            Insemination.find({ cowId: cow._id }).lean()
+            Settings.findOne(communityFilter).lean(),
+            Insemination.find({ cowId: cow._id, ...communityFilter }).lean()
         ]);
         const repro = buildPregnancyInfo(cow, settings, insems);
         res.render('profile-cow', { title:'Cow Profile', cow, settings, insems, repro, override: !!req.session.cowOverride });
@@ -856,7 +960,9 @@ app.get('/profile/cow/number/:number', async (req,res)=>{
 // Lookup by bull number
 app.get('/profile/bull/number/:number', async (req,res)=>{
     try {
-        const bull = await Bull.findOne({ bullNumber: req.params.number }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const bull = await Bull.findOne({ bullNumber: req.params.number, ...communityFilter }).lean();
         if (!bull) return res.status(404).send('Bull not found');
         res.render('profile-bull', { title:'Bull Profile', bull });
     } catch (err){ console.error(err); res.status(500).send('Internal Server Error'); }
@@ -878,9 +984,11 @@ function getCalfGraduationInfo(calf, settings){
 
 app.get('/profile/calf/:id', async (req,res)=>{
     try {
-        const calf = await Calf.findById(req.params.id).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const calf = await Calf.findOne({ _id: req.params.id, ...communityFilter }).lean();
         if (!calf) return res.status(404).send('Calf not found');
-        const settings = await Settings.findOne().lean();
+        const settings = await Settings.findOne(communityFilter).lean();
         const gradInfo = getCalfGraduationInfo(calf, settings);
         res.render('profile-calf', { title:'Calf Profile', calf, gradInfo, override: !!req.session.cowOverride });
     } catch (err){ console.error(err); res.status(500).send('Internal Server Error'); }
@@ -890,13 +998,15 @@ app.get('/profile/calf/:id', async (req,res)=>{
 app.get('/calf/:id/history', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid calf id' });
-        const calf = await Calf.findById(id).lean(); if(!calf) return res.status(404).json({ error:'Calf not found' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const calf = await Calf.findOne({ _id: id, ...communityFilter }).lean(); if(!calf) return res.status(404).json({ error:'Calf not found' });
         const items = [];
         if (calf.status && ['miscarriage','died'].includes(calf.status)){
             items.push({ type:'loss', at: calf.birthDate || new Date(), details:{ status: calf.status, name: calf.calfName||'' } });
         }
         if (calf.graduated){
-            let adult=null; if (calf.adultId && calf.adultType){ try{ adult = calf.adultType==='cow' ? await Cow.findById(calf.adultId).lean() : await Bull.findById(calf.adultId).lean(); }catch(_){} }
+            let adult=null; if (calf.adultId && calf.adultType){ try{ adult = calf.adultType==='cow' ? await Cow.findOne({ _id: calf.adultId, ...communityFilter }).lean() : await Bull.findOne({ _id: calf.adultId, ...communityFilter }).lean(); }catch(_){} }
             items.push({ type:'graduate', at: calf.graduatedAt || new Date(), details:{ adultType: calf.adultType, adultId: calf.adultId, calfName: calf.calfName||'' }, adult: adult ? { id:String(adult._id), type: calf.adultType, name: adult.cowName || adult.bullName || '', number: adult.cowNumber || adult.bullNumber || '' } : null });
         }
         res.json({ items });
@@ -907,10 +1017,12 @@ app.get('/calf/:id/history', async (req,res)=>{
 app.post('/calf/:id/graduate', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid calf id' });
-        const calf = await Calf.findById(id);
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const calf = await Calf.findOne({ _id: id, ...communityFilter });
         if(!calf) return res.status(404).json({ error:'Calf not found' });
         if(calf.graduated) return res.status(409).json({ error:'Calf already graduated' });
-        const settings = await Settings.findOne().lean();
+        const settings = await Settings.findOne(communityFilter).lean();
         const info = getCalfGraduationInfo(calf, settings);
         const forced = !!req.body?.forced;
         const overrideActive = !!req.session.cowOverride;
@@ -933,7 +1045,8 @@ app.post('/calf/:id/graduate', async (req,res)=>{
                 motherCowBreed: calf.motherCowBreed || '',
                 sireBullNumber: calf.sireBullNumber || '',
                 sireBullName: calf.sireBullName || '',
-                sireBullBreed: calf.sireBullBreed || ''
+                sireBullBreed: calf.sireBullBreed || '',
+                community: calf.community || null
             });
         } else {
             adultType='bull';
@@ -949,13 +1062,14 @@ app.post('/calf/:id/graduate', async (req,res)=>{
                 motherCowBreed: calf.motherCowBreed || '',
                 sireBullNumber: calf.sireBullNumber || '',
                 sireBullName: calf.sireBullName || '',
-                sireBullBreed: calf.sireBullBreed || ''
+                sireBullBreed: calf.sireBullBreed || '',
+                community: calf.community || null
             });
         }
         calf.graduated = true; calf.graduatedAt = now; calf.adultType = adultType; calf.adultId = adult._id; await calf.save();
         // Link audit to mother cow if available
         const actor = (forced && overrideActive) ? 'override' : 'user';
-        if(calf.motherCowNumber){ const mother = await Cow.findOne({ cowNumber: calf.motherCowNumber }).lean(); if(mother){ await logAudit({ cowId: mother._id, action:'calf.graduate', actor, payload:{ calfId: calf._id, calfName: calf.calfName || '', gender: calf.gender, adultType, adultId: adult._id, forced: !!forced } }); } }
+        if(calf.motherCowNumber){ const mother = await Cow.findOne({ cowNumber: calf.motherCowNumber, ...communityFilter }).lean(); if(mother){ await logAudit({ cowId: mother._id, action:'calf.graduate', actor, payload:{ calfId: calf._id, calfName: calf.calfName || '', gender: calf.gender, adultType, adultId: adult._id, forced: !!forced }, community: calf.community || null }); } }
         return res.json({ ok:true, adult: { id:String(adult._id), type: adultType } });
     }catch(err){ console.error('Manual graduation error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -964,19 +1078,23 @@ app.post('/calf/:id/graduate', async (req,res)=>{
 app.get('/profile/nav/:type/:id', async (req,res)=>{
     try {
         const { type, id } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         let list = [];
         if (type === 'cow') {
-            list = (await Cow.find().lean()).map(c=> ({ id:String(c._id), label:(c.cowName || c.cowNumber || '').trim() || `Cow ${String(c._id).slice(-4)}` }));
+            list = (await Cow.find(communityFilter).lean()).map(c=> ({ id:String(c._id), label:(c.cowName || c.cowNumber || '').trim() || `Cow ${String(c._id).slice(-4)}` }));
         } else if (type === 'bull') {
             // Fetch current bull to determine grouping (herd vs insemination)
-            const currentBull = await Bull.findById(id).lean();
+            const currentBull = await Bull.findOne({ _id: id, ...communityFilter }).lean();
             if (!currentBull) return res.status(404).json({ error:'Bull not found' });
             const isInsemination = !!currentBull.isInsemination;
             // Filter bulls based on current bull category. For herd bulls (isInsemination=false) also include legacy documents where field is missing.
-            const filter = isInsemination ? { isInsemination: true } : { $or: [ { isInsemination: false }, { isInsemination: { $exists: false } } ] };
+            const filter = isInsemination 
+                ? { ...communityFilter, isInsemination: true } 
+                : { ...communityFilter, $or: [ { isInsemination: false }, { isInsemination: { $exists: false } } ] };
             list = (await Bull.find(filter).lean()).map(b=> ({ id:String(b._id), label:(b.bullName || b.bullNumber || '').trim() || `Bull ${String(b._id).slice(-4)}` }));
         } else if (type === 'calf') {
-            list = (await Calf.find().lean()).map(k=> ({ id:String(k._id), label:(k.calfName || '').trim() || `Calf ${String(k._id).slice(-4)}` }));
+            list = (await Calf.find(communityFilter).lean()).map(k=> ({ id:String(k._id), label:(k.calfName || '').trim() || `Calf ${String(k._id).slice(-4)}` }));
         } else {
             return res.status(400).json({ error:'Invalid type' });
         }
@@ -997,15 +1115,17 @@ app.get('/profile/nav/:type/:id', async (req,res)=>{
 app.get('/lineage/calf/:id', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid calf id' });
-        const calf = await Calf.findById(id).lean(); if(!calf) return res.status(404).json({ error:'Calf not found' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const calf = await Calf.findOne({ _id: id, ...communityFilter }).lean(); if(!calf) return res.status(404).json({ error:'Calf not found' });
         const nodes=[]; const edges=[]; const byKey=new Map();
         function addNode(doc, type){ if(!doc) return null; const key=String(doc._id); if(byKey.has(key)) return byKey.get(key); const node={ _id:key, type, label: (type==='cow'? (doc.cowName||doc.cowNumber||'Cow') : type==='bull'? (doc.bullName||doc.bullNumber||'Bull') : (doc.calfName||'Calf')), number: (type==='cow'? doc.cowNumber : type==='bull'? doc.bullNumber : ''), race: (type==='cow'? doc.race : type==='bull'? doc.race : doc.calfBreed), dob: (type==='cow'? doc.dob : type==='bull'? doc.dob : doc.birthDate) };
             if(type==='bull' && doc.isInsemination) node.isInsemination=true; nodes.push(node); byKey.set(key,node); return node; }
         function addEdge(fromId,toId,relation){ edges.push({ from:String(fromId), to:String(toId), relation }); }
         const self = addNode(calf,'calf');
         let mother=null, sire=null;
-        if(calf.motherCowNumber){ mother = await Cow.findOne({ cowNumber: calf.motherCowNumber }).lean(); }
-        if(calf.sireBullNumber){ sire = await Bull.findOne({ bullNumber: calf.sireBullNumber }).lean(); }
+        if(calf.motherCowNumber){ mother = await Cow.findOne({ cowNumber: calf.motherCowNumber, ...communityFilter }).lean(); }
+        if(calf.sireBullNumber){ sire = await Bull.findOne({ bullNumber: calf.sireBullNumber, ...communityFilter }).lean(); }
         if(mother){ addNode(mother,'cow'); addEdge(mother._id, self._id, 'mother'); }
         if(sire){ addNode(sire,'bull'); addEdge(sire._id, self._id, 'sire'); }
         return res.json({ nodes, edges });
@@ -1015,7 +1135,9 @@ app.get('/lineage/calf/:id', async (req,res)=>{
 app.get('/lineage/cow/:id', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
-        const cow = await Cow.findById(id).lean(); if(!cow) return res.status(404).json({ error:'Cow not found' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const cow = await Cow.findOne({ _id: id, ...communityFilter }).lean(); if(!cow) return res.status(404).json({ error:'Cow not found' });
         const nodes=[]; const edges=[]; const byKey=new Map();
         function addNode(doc, type){ if(!doc) return null; const key=String(doc._id); if(byKey.has(key)) return byKey.get(key); const node={ _id:key, type, label: (type==='cow'? (doc.cowName||doc.cowNumber||'Cow') : type==='bull'? (doc.bullName||doc.bullNumber||'Bull') : (doc.calfName||'Calf')), number: (type==='cow'? doc.cowNumber : type==='bull'? doc.bullNumber : ''), race: (type==='cow'? doc.race : type==='bull'? doc.race : doc.calfBreed), dob: (type==='cow'? doc.dob : type==='bull'? doc.dob : doc.birthDate) };
             if(type==='bull' && doc.isInsemination) node.isInsemination=true; nodes.push(node); byKey.set(key,node); return node; }
@@ -1023,13 +1145,13 @@ app.get('/lineage/cow/:id', async (req,res)=>{
         const self = addNode(cow,'cow');
         // Parents of cow
         let mother=null, sire=null;
-        if(cow.motherCowNumber){ mother = await Cow.findOne({ cowNumber: cow.motherCowNumber }).lean(); }
-        if(cow.sireBullNumber){ sire = await Bull.findOne({ bullNumber: cow.sireBullNumber }).lean(); }
+        if(cow.motherCowNumber){ mother = await Cow.findOne({ cowNumber: cow.motherCowNumber, ...communityFilter }).lean(); }
+        if(cow.sireBullNumber){ sire = await Bull.findOne({ bullNumber: cow.sireBullNumber, ...communityFilter }).lean(); }
         if(mother){ addNode(mother,'cow'); addEdge(mother._id, self._id, 'mother'); }
         if(sire){ addNode(sire,'bull'); addEdge(sire._id, self._id, 'sire'); }
         // Offspring: calves where this cow is the mother
-        const kids = await Calf.find({ motherCowNumber: cow.cowNumber }).lean();
-        for(const k of kids){ const kn = addNode(k,'calf'); addEdge(self._id, k._id, 'offspring'); if(k.sireBullNumber){ const kb = await Bull.findOne({ bullNumber: k.sireBullNumber }).lean(); if(kb){ addNode(kb,'bull'); addEdge(kb._id, k._id, 'sire'); } } }
+        const kids = await Calf.find({ motherCowNumber: cow.cowNumber, ...communityFilter }).lean();
+        for(const k of kids){ const kn = addNode(k,'calf'); addEdge(self._id, k._id, 'offspring'); if(k.sireBullNumber){ const kb = await Bull.findOne({ bullNumber: k.sireBullNumber, ...communityFilter }).lean(); if(kb){ addNode(kb,'bull'); addEdge(kb._id, k._id, 'sire'); } } }
         return res.json({ nodes, edges });
     }catch(err){ console.error('Lineage cow error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1039,10 +1161,12 @@ app.get('/cow-profile', async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) return res.status(400).json({ error: 'Missing id' });
-        const cow = await Cow.findById(id).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const cow = await Cow.findOne({ _id: id, ...communityFilter }).lean();
         if (!cow) return res.status(404).json({ error: 'Cow not found' });
-        const settings = await Settings.findOne().lean();
-        const records = await Insemination.find({ cowId: id }).sort({ date: -1 }).lean();
+        const settings = await Settings.findOne(communityFilter).lean();
+        const records = await Insemination.find({ cowId: id, ...communityFilter }).sort({ date: -1 }).lean();
         const repro = buildPregnancyInfo(cow, settings, records);
         res.json({ cow, reproduction: repro, override: !!req.session.cowOverride });
     } catch (err) {
@@ -1089,9 +1213,11 @@ app.post('/cow/:id/insemination', async (req,res)=>{
         const { id } = req.params; const { date, notes, forced } = req.body;
         if (forced && !req.session.cowOverride) return res.status(403).json({ error:'Override required for forced attempt' });
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: 'Invalid cow id' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const [cow, settings] = await Promise.all([
-            Cow.findById(id).lean(),
-            Settings.findOne().lean(),
+            Cow.findOne({ _id: id, ...communityFilter }).lean(),
+            Settings.findOne(communityFilter).lean(),
         ]);
         if(!cow) return res.status(404).json({ error:'Cow not found' });
         const d = date ? new Date(date) : new Date();
@@ -1101,8 +1227,8 @@ app.post('/cow/:id/insemination', async (req,res)=>{
             const earliest = new Date(cow.lastCalving); earliest.setDate(earliest.getDate() + postpartumStartDays);
             if (d < earliest) return res.status(400).json({ error:'Too early after last calving', code:'postpartum_window', earliest });
         }
-        const attempt = await Insemination.create({ cowId: id, date: d, confirmedPregnant: false, notes: notes||'', forced: !!forced });
-        await logAudit({ cowId:id, inseminationId: attempt._id, action: forced? 'insemination.forced':'insemination.add', actor: (forced && req.session.cowOverride)? 'override':'user', payload:{ date:d, notes: notes||'' } });
+        const attempt = await Insemination.create({ cowId: id, date: d, confirmedPregnant: false, notes: notes||'', forced: !!forced, community: req.communityId || null });
+        await logAudit({ cowId:id, inseminationId: attempt._id, action: forced? 'insemination.forced':'insemination.add', actor: (forced && req.session.cowOverride)? 'override':'user', payload:{ date:d, notes: notes||'' }, community: req.communityId || null });
         res.status(201).json(attempt);
     } catch(err){ console.error('Add insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1115,14 +1241,17 @@ app.post('/cow/:id/insemination/:inseminationId/notes', async (req,res)=>{
 // Confirm pregnancy on an existing insemination attempt
 app.post('/cow/:id/insemination/:inseminationId/confirm', async (req,res)=>{
     try {
-        const { id, inseminationId } = req.params; const settings = await Settings.findOne().lean();
+        const { id, inseminationId } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const settings = await Settings.findOne(communityFilter).lean();
         if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(inseminationId)) return res.status(400).json({ error:'Invalid id format' });
-        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id }).lean();
+        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id, ...communityFilter }).lean();
         if(!doc) return res.status(404).json({ error:'Insemination attempt not found' });
         const interval = settings?.inseminationIntervalDays || 90; const checkDate = new Date(doc.date); checkDate.setDate(checkDate.getDate()+interval);
         if (new Date() < checkDate && !req.session.cowOverride) return res.status(403).json({ error:'Override required until pregnancy check date' });
-        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id }, { confirmedPregnant: true, failed: false }, { new:true }).lean();
-        await logAudit({ cowId:id, inseminationId, action:'insemination.confirm', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date } });
+        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id, ...communityFilter }, { confirmedPregnant: true, failed: false }, { new:true }).lean();
+        await logAudit({ cowId:id, inseminationId, action:'insemination.confirm', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date }, community: req.communityId || null });
         res.json(attempt);
     } catch(err){ console.error('Confirm insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1130,14 +1259,17 @@ app.post('/cow/:id/insemination/:inseminationId/confirm', async (req,res)=>{
 // Undo pregnancy confirmation (revert to pending status)
 app.post('/cow/:id/insemination/:inseminationId/unconfirm', async (req,res)=>{
     try {
-        const { id, inseminationId } = req.params; const settings = await Settings.findOne().lean();
+        const { id, inseminationId } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const settings = await Settings.findOne(communityFilter).lean();
         if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(inseminationId)) return res.status(400).json({ error:'Invalid id format' });
-        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id }).lean();
+        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id, ...communityFilter }).lean();
         if(!doc) return res.status(404).json({ error:'Insemination attempt not found' });
         const interval = settings?.inseminationIntervalDays || 90; const checkDate = new Date(doc.date); checkDate.setDate(checkDate.getDate()+interval);
         if (new Date() < checkDate && !req.session.cowOverride) return res.status(403).json({ error:'Override required until pregnancy check date' });
-        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id }, { confirmedPregnant: false, failed: false }, { new:true }).lean();
-        await logAudit({ cowId:id, inseminationId, action:'insemination.unconfirm', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date } });
+        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id, ...communityFilter }, { confirmedPregnant: false, failed: false }, { new:true }).lean();
+        await logAudit({ cowId:id, inseminationId, action:'insemination.unconfirm', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date }, community: req.communityId || null });
         res.json(attempt);
     } catch(err){ console.error('Unconfirm insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1145,14 +1277,17 @@ app.post('/cow/:id/insemination/:inseminationId/unconfirm', async (req,res)=>{
 // Mark insemination attempt as failed (not pregnant after evaluation window)
 app.post('/cow/:id/insemination/:inseminationId/fail', async (req,res)=>{
     try {
-        const { id, inseminationId } = req.params; const settings = await Settings.findOne().lean();
+        const { id, inseminationId } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const settings = await Settings.findOne(communityFilter).lean();
         if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(inseminationId)) return res.status(400).json({ error:'Invalid id format' });
-        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id }).lean();
+        const doc = await Insemination.findOne({ _id: inseminationId, cowId: id, ...communityFilter }).lean();
         if(!doc) return res.status(404).json({ error:'Insemination attempt not found' });
         const interval = settings?.inseminationIntervalDays || 90; const checkDate = new Date(doc.date); checkDate.setDate(checkDate.getDate()+interval);
         if (new Date() < checkDate && !req.session.cowOverride) return res.status(403).json({ error:'Override required until pregnancy check date' });
-        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id }, { failed: true, confirmedPregnant: false }, { new:true }).lean();
-        await logAudit({ cowId:id, inseminationId, action:'insemination.fail', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date } });
+        const attempt = await Insemination.findOneAndUpdate({ _id: inseminationId, cowId: id, ...communityFilter }, { failed: true, confirmedPregnant: false }, { new:true }).lean();
+        await logAudit({ cowId:id, inseminationId, action:'insemination.fail', actor: req.session.cowOverride? 'override':'user', payload:{ date: attempt.date }, community: req.communityId || null });
         res.json(attempt);
     } catch(err){ console.error('Fail insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1163,10 +1298,12 @@ app.post('/cow/:id/calving', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id } = req.params; const { date, birthDate, notes, calfName, calfBreed, gender, status, motherCowNumber, sireBullNumber, calfGeneralNotes } = req.body;
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const d = date ? new Date(date) : new Date();
         if (isNaN(d.getTime())) return res.status(400).json({ error:'Invalid date' });
-        const prev = await Cow.findById(id).lean();
-        const updated = await Cow.findByIdAndUpdate(id, { lastCalving: d }, { new:true }).lean();
+        const prev = await Cow.findOne({ _id: id, ...communityFilter }).lean();
+        const updated = await Cow.findOneAndUpdate({ _id: id, ...communityFilter }, { lastCalving: d }, { new:true }).lean();
         if(!updated) return res.status(404).json({ error:'Cow not found' });
         // Create calf profile from birth data if gender is provided
         let calf = null;
@@ -1187,17 +1324,18 @@ app.post('/cow/:id/calving', async (req,res)=>{
                 motherCowBreed: updated.race || '',
                 sireBullNumber: '',
                 sireBullName: '',
-                sireBullBreed: ''
+                sireBullBreed: '',
+                community: req.communityId || null
             };
             // Override mother if a number was passed
             if (motherCowNumber){
-                const m = await Cow.findOne({ cowNumber: motherCowNumber }).lean();
+                const m = await Cow.findOne({ cowNumber: motherCowNumber, ...communityFilter }).lean();
                 if (m){ calfDoc.motherCowNumber = m.cowNumber || calfDoc.motherCowNumber; calfDoc.motherCowName = m.cowName || calfDoc.motherCowName; calfDoc.motherCowBreed = m.race || calfDoc.motherCowBreed; }
                 else { calfDoc.motherCowNumber = motherCowNumber; }
             }
             // Sire by number if provided
             if (sireBullNumber){
-                const b = await Bull.findOne({ bullNumber: sireBullNumber }).lean();
+                const b = await Bull.findOne({ bullNumber: sireBullNumber, ...communityFilter }).lean();
                 if (b){ calfDoc.sireBullNumber = b.bullNumber || ''; calfDoc.sireBullName = b.bullName || ''; calfDoc.sireBullBreed = b.race || ''; }
                 else { calfDoc.sireBullNumber = sireBullNumber; }
             }
@@ -1208,7 +1346,7 @@ app.post('/cow/:id/calving', async (req,res)=>{
                 calf = await Calf.findByIdAndUpdate(calf._id, { notes: merged }, { new:true }).lean();
             }
         }
-        const audit = await Audit.create({ cowId:id, action:'cow.calving.set', actor:'override', payload:{ from: prev?.lastCalving || null, to: d, notes: notes||'', calfId: calf? calf._id : null } });
+        const audit = await Audit.create({ cowId:id, action:'cow.calving.set', actor:'override', payload:{ from: prev?.lastCalving || null, to: d, notes: notes||'', calfId: calf? calf._id : null }, community: req.communityId || null });
         res.json({ cow: updated, auditId: audit._id, calf: calf });
     } catch(err){ console.error('Calving record error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1218,10 +1356,12 @@ app.post('/calf', async (req,res)=>{
     try{
         const { calfName, calfBreed, birthDate, gender, notes, motherCowNumber, sireBullNumber, status } = req.body;
         if(!calfName || !calfBreed || !birthDate || !gender){ return res.status(400).json({ error:'Missing required fields', required:['calfName','calfBreed','birthDate','gender'] }); }
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const d = new Date(birthDate); if(isNaN(d.getTime())) return res.status(400).json({ error:'Invalid birthDate' });
-        const doc = { calfName, calfBreed, birthDate:d, gender:String(gender).toLowerCase(), status: status && ['alive','miscarriage','died'].includes(String(status)) ? String(status) : 'alive', notes: notes||'' };
-        if(motherCowNumber){ const m = await Cow.findOne({ cowNumber: motherCowNumber }).lean(); if(m){ doc.motherCowNumber = m.cowNumber||''; doc.motherCowName=m.cowName||''; doc.motherCowBreed=m.race||''; } else { doc.motherCowNumber = motherCowNumber; } }
-        if(sireBullNumber){ const b = await Bull.findOne({ bullNumber: sireBullNumber }).lean(); if(b){ doc.sireBullNumber=b.bullNumber||''; doc.sireBullName=b.bullName||''; doc.sireBullBreed=b.race||''; } else { doc.sireBullNumber = sireBullNumber; } }
+        const doc = { calfName, calfBreed, birthDate:d, gender:String(gender).toLowerCase(), status: status && ['alive','miscarriage','died'].includes(String(status)) ? String(status) : 'alive', notes: notes||'', community: req.communityId || null };
+        if(motherCowNumber){ const m = await Cow.findOne({ cowNumber: motherCowNumber, ...communityFilter }).lean(); if(m){ doc.motherCowNumber = m.cowNumber||''; doc.motherCowName=m.cowName||''; doc.motherCowBreed=m.race||''; } else { doc.motherCowNumber = motherCowNumber; } }
+        if(sireBullNumber){ const b = await Bull.findOne({ bullNumber: sireBullNumber, ...communityFilter }).lean(); if(b){ doc.sireBullNumber=b.bullNumber||''; doc.sireBullName=b.bullName||''; doc.sireBullBreed=b.race||''; } else { doc.sireBullNumber = sireBullNumber; } }
         const calf = await Calf.create(doc);
         res.json({ ok:true, calf });
     } catch(err){ console.error('Create calf error:', err); res.status(500).json({ error:'Internal Server Error' }); }
@@ -1229,10 +1369,18 @@ app.post('/calf', async (req,res)=>{
 
 // Lookup endpoints for auto-fill
 app.get('/lookup/cow/:number', async (req,res)=>{
-    try{ const m = await Cow.findOne({ cowNumber: req.params.number }).lean(); if(!m) return res.status(404).json({ error:'Cow not found' }); res.json({ cow:m }); }catch(err){ res.status(500).json({ error:'Internal Server Error' }); }
+    try{
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const m = await Cow.findOne({ cowNumber: req.params.number, ...communityFilter }).lean(); if(!m) return res.status(404).json({ error:'Cow not found' }); res.json({ cow:m });
+    }catch(err){ res.status(500).json({ error:'Internal Server Error' }); }
 });
 app.get('/lookup/bull/:number', async (req,res)=>{
-    try{ const b = await Bull.findOne({ bullNumber: req.params.number }).lean(); if(!b) return res.status(404).json({ error:'Bull not found' }); res.json({ bull:b }); }catch(err){ res.status(500).json({ error:'Internal Server Error' }); }
+    try{
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const b = await Bull.findOne({ bullNumber: req.params.number, ...communityFilter }).lean(); if(!b) return res.status(404).json({ error:'Bull not found' }); res.json({ bull:b });
+    }catch(err){ res.status(500).json({ error:'Internal Server Error' }); }
 });
 
 // Clear calving date (admin action)
@@ -1241,10 +1389,12 @@ app.delete('/cow/:id/calving', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id } = req.params;
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
-        const prev = await Cow.findById(id).lean();
-        const updated = await Cow.findByIdAndUpdate(id, { $unset: { lastCalving: 1 } }, { new:true }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const prev = await Cow.findOne({ _id: id, ...communityFilter }).lean();
+        const updated = await Cow.findOneAndUpdate({ _id: id, ...communityFilter }, { $unset: { lastCalving: 1 } }, { new:true }).lean();
         if(!updated) return res.status(404).json({ error:'Cow not found' });
-        const audit = await Audit.create({ cowId:id, action:'cow.calving.clear', actor:'override', payload:{ from: prev?.lastCalving || null } });
+        const audit = await Audit.create({ cowId:id, action:'cow.calving.clear', actor:'override', payload:{ from: prev?.lastCalving || null }, community: req.communityId || null });
         res.json({ cow: updated, auditId: audit._id });
     } catch(err){ console.error('Clear calving date error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1255,13 +1405,15 @@ app.delete('/cow/:id/insemination/:inseminationId', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id, inseminationId } = req.params;
         if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(inseminationId)) return res.status(400).json({ error:'Invalid id format' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         // Ensure we only ever delete the latest attempt for safety/history retention
-        const latest = await Insemination.findOne({ cowId:id }).sort({ date:-1, _id:-1 }).lean();
+        const latest = await Insemination.findOne({ cowId:id, ...communityFilter }).sort({ date:-1, _id:-1 }).lean();
         if(!latest) return res.status(404).json({ error:'No attempts recorded' });
         if(String(latest._id) !== String(inseminationId)) return res.status(400).json({ error:'Only latest attempt may be deleted' });
-        const attempt = await Insemination.findOneAndDelete({ _id: latest._id, cowId: id }).lean();
+        const attempt = await Insemination.findOneAndDelete({ _id: latest._id, cowId: id, ...communityFilter }).lean();
         if(!attempt) return res.status(404).json({ error:'Insemination attempt not found' });
-        await logAudit({ cowId:id, inseminationId: attempt._id, action:'insemination.delete', actor:'override', payload:{ snapshot: attempt } });
+        await logAudit({ cowId:id, inseminationId: attempt._id, action:'insemination.delete', actor:'override', payload:{ snapshot: attempt }, community: req.communityId || null });
         res.json({ ok: true, deletedId: attempt._id });
     } catch(err){ console.error('Delete insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1272,11 +1424,13 @@ app.delete('/cow/:id/inseminations', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id } = req.params;
         if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
-        const attempts = await Insemination.find({ cowId:id }).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const attempts = await Insemination.find({ cowId:id, ...communityFilter }).lean();
         if(!attempts.length) return res.json({ ok:true, deleted:0 });
         const ids = attempts.map(a=> a._id);
-        await Insemination.deleteMany({ cowId:id });
-        const audit = await Audit.create({ cowId:id, action:'insemination.clearAll', actor:'override', payload:{ count: attempts.length, ids, snapshots: attempts } });
+        await Insemination.deleteMany({ cowId:id, ...communityFilter });
+        const audit = await Audit.create({ cowId:id, action:'insemination.clearAll', actor:'override', payload:{ count: attempts.length, ids, snapshots: attempts }, community: req.communityId || null });
         res.json({ ok:true, deleted: attempts.length, auditId: audit._id });
     }catch(err){ console.error('Clear all inseminations error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1285,7 +1439,9 @@ app.delete('/cow/:id/inseminations', async (req,res)=>{
 app.get('/cow/:id/audit', async (req,res)=>{
     try{
         const { id } = req.params; if(!mongoose.isValidObjectId(id)) return res.status(400).json({ error:'Invalid cow id' });
-        const items = await Audit.find({ cowId:id }).sort({ createdAt:-1 }).limit(50).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        const items = await Audit.find({ cowId:id, ...communityFilter }).sort({ createdAt:-1 }).limit(50).lean();
         res.json({ items });
     } catch(err){ console.error('Audit list error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1295,10 +1451,15 @@ app.post('/cow/:id/insemination/restore/:auditId', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id, auditId } = req.params;
         if(!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(auditId)) return res.status(400).json({ error:'Invalid id' });
-        const a = await Audit.findById(auditId).lean(); if(!a || a.action!=='insemination.delete' || !a.payload || !a.payload.snapshot) return res.status(404).json({ error:'Restore snapshot not found' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        // Verify cow belongs to community
+        const cow = await Cow.findOne({ _id: id, ...communityFilter }).lean();
+        if (!cow) return res.status(404).json({ error:'Cow not found' });
+        const a = await Audit.findOne({ _id: auditId, ...communityFilter }).lean(); if(!a || a.action!=='insemination.delete' || !a.payload || !a.payload.snapshot) return res.status(404).json({ error:'Restore snapshot not found' });
         const snap = a.payload.snapshot;
-        const restored = await Insemination.create({ cowId:id, date:snap.date, confirmedPregnant: !!snap.confirmedPregnant, failed: !!snap.failed, forced: !!snap.forced, notes: snap.notes||'' });
-        await logAudit({ cowId:id, inseminationId: restored._id, action:'insemination.restore', actor:'override', payload:{ fromAudit:a._id } });
+        const restored = await Insemination.create({ cowId:id, date:snap.date, confirmedPregnant: !!snap.confirmedPregnant, failed: !!snap.failed, forced: !!snap.forced, notes: snap.notes||'', community: cow.community });
+        await logAudit({ cowId:id, inseminationId: restored._id, action:'insemination.restore', actor:'override', payload:{ fromAudit:a._id }, community: cow.community });
         res.json({ ok:true, attempt: restored });
     } catch(err){ console.error('Restore insemination error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1309,13 +1470,18 @@ app.post('/cow/:id/calving/restore/:auditId', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id, auditId } = req.params;
         if(!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(auditId)) return res.status(400).json({ error:'Invalid id' });
-        const a = await Audit.findById(auditId).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        // Verify cow belongs to community
+        const cow = await Cow.findOne({ _id: id, ...communityFilter });
+        if (!cow) return res.status(404).json({ error:'Cow not found' });
+        const a = await Audit.findOne({ _id: auditId, ...communityFilter }).lean();
         if(!a || !['cow.calving.set','cow.calving.clear'].includes(a.action) || !a.payload) return res.status(404).json({ error:'Calving audit not found' });
         const prev = a.payload.from || null;
         let updated;
-        if(prev){ updated = await Cow.findByIdAndUpdate(id, { lastCalving: new Date(prev) }, { new:true }).lean(); }
-        else { updated = await Cow.findByIdAndUpdate(id, { $unset: { lastCalving: 1 } }, { new:true }).lean(); }
-        await logAudit({ cowId:id, action:'cow.calving.restore', actor:'override', payload:{ fromAudit:a._id } });
+        if(prev){ cow.lastCalving = new Date(prev); updated = await cow.save(); }
+        else { cow.lastCalving = undefined; updated = await cow.save(); }
+        await logAudit({ cowId:id, action:'cow.calving.restore', actor:'override', payload:{ fromAudit:a._id }, community: cow.community });
         res.json({ ok:true, cow: updated });
     } catch(err){ console.error('Restore calving error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1326,19 +1492,24 @@ app.post('/cow/:id/inseminations/restore/:auditId', async (req,res)=>{
         if(!req.session.cowOverride) return res.status(403).json({ error:'Override required' });
         const { id, auditId } = req.params;
         if(!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(auditId)) return res.status(400).json({ error:'Invalid id' });
-        const a = await Audit.findById(auditId).lean();
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+        // Verify cow belongs to community
+        const cow = await Cow.findOne({ _id: id, ...communityFilter }).lean();
+        if (!cow) return res.status(404).json({ error:'Cow not found' });
+        const a = await Audit.findOne({ _id: auditId, ...communityFilter }).lean();
         if(!a || a.action!=='insemination.clearAll' || !a.payload || !Array.isArray(a.payload.snapshots)) return res.status(404).json({ error:'Restore snapshots not found' });
         const snaps = a.payload.snapshots;
         if(!snaps.length) return res.json({ ok:true, restored:0, total:0, missing:0 });
-        const existing = await Insemination.find({ cowId:id }).lean();
+        const existing = await Insemination.find({ cowId:id, ...communityFilter }).lean();
         const existingByKey = new Set(existing.map(e=> new Date(e.date).toISOString().slice(0,10)+'|'+(e.notes||''))); // match on date+notes
         const toCreate = snaps.filter(s=>{
             const key = new Date(s.date).toISOString().slice(0,10)+'|'+(s.notes||'');
             return !existingByKey.has(key);
-        }).map(s=> ({ cowId:id, date:s.date, confirmedPregnant: !!s.confirmedPregnant, failed: !!s.failed, forced: !!s.forced, notes: s.notes||'' }));
+        }).map(s=> ({ cowId:id, date:s.date, confirmedPregnant: !!s.confirmedPregnant, failed: !!s.failed, forced: !!s.forced, notes: s.notes||'', community: cow.community }));
         let created = [];
         if(toCreate.length){ created = await Insemination.insertMany(toCreate); }
-        await logAudit({ cowId:id, action:'insemination.restoreAll', actor:'override', payload:{ fromAudit:a._id, createdCount: created.length } });
+        await logAudit({ cowId:id, action:'insemination.restoreAll', actor:'override', payload:{ fromAudit:a._id, createdCount: created.length }, community: cow.community });
         res.json({ ok:true, restored: created.length, total: snaps.length, missing: Math.max(0, snaps.length - (existing.length + created.length)) });
     } catch(err){ console.error('Restore all inseminations error:', err); res.status(500).json({ error:'Internal Server Error' }); }
 });
@@ -1347,6 +1518,8 @@ app.post('/cow/:id/inseminations/restore/:auditId', async (req,res)=>{
 app.get('/lineage/:type/:id', async (req, res) => {
     try{
         const { type, id } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const nodes = [];
         const nodeMap = new Map();
         const edges = [];
@@ -1381,22 +1554,22 @@ app.get('/lineage/:type/:id', async (req, res) => {
         };
         const findByNumber = async (t, num) => {
             if (!num) return null;
-            if (t === 'cow') return await Cow.findOne({ cowNumber: num }).lean();
-            if (t === 'bull') return await Bull.findOne({ bullNumber: num }).lean();
+            if (t === 'cow') return await Cow.findOne({ cowNumber: num, ...communityFilter }).lean();
+            if (t === 'bull') return await Bull.findOne({ bullNumber: num, ...communityFilter }).lean();
             return null;
         };
         const getParents = async (doc, t) => {
             if (!doc) return [];
             if (t === 'cow' || t === 'calf'){
                 const [mDoc, sDoc] = await Promise.all([
-                    doc.motherCowNumber ? Cow.findOne({ cowNumber: doc.motherCowNumber }).lean() : null,
-                    doc.sireBullNumber ? Bull.findOne({ bullNumber: doc.sireBullNumber }).lean() : null,
+                    doc.motherCowNumber ? Cow.findOne({ cowNumber: doc.motherCowNumber, ...communityFilter }).lean() : null,
+                    doc.sireBullNumber ? Bull.findOne({ bullNumber: doc.sireBullNumber, ...communityFilter }).lean() : null,
                 ]);
                 return [mDoc?{doc:mDoc, t:'cow', rel:'mother'}:null, sDoc?{doc:sDoc, t:'bull', rel:'sire'}:null].filter(Boolean);
             } else if (t === 'bull'){
                 const [mDoc, sDoc] = await Promise.all([
-                    doc.motherCowNumber ? Cow.findOne({ cowNumber: doc.motherCowNumber }).lean() : null,
-                    doc.sireBullNumber ? Bull.findOne({ bullNumber: doc.sireBullNumber }).lean() : null,
+                    doc.motherCowNumber ? Cow.findOne({ cowNumber: doc.motherCowNumber, ...communityFilter }).lean() : null,
+                    doc.sireBullNumber ? Bull.findOne({ bullNumber: doc.sireBullNumber, ...communityFilter }).lean() : null,
                 ]);
                 return [mDoc?{doc:mDoc, t:'cow', rel:'mother'}:null, sDoc?{doc:sDoc, t:'bull', rel:'sire'}:null].filter(Boolean);
             }
@@ -1406,9 +1579,9 @@ app.get('/lineage/:type/:id', async (req, res) => {
             if (!doc) return [];
             if (t === 'cow'){
                 const [calves, cows, bulls] = await Promise.all([
-                    Calf.find({ motherCowNumber: doc.cowNumber }).lean(),
-                    Cow.find({ motherCowNumber: doc.cowNumber }).lean(),
-                    Bull.find({ motherCowNumber: doc.cowNumber }).lean(),
+                    Calf.find({ motherCowNumber: doc.cowNumber, ...communityFilter }).lean(),
+                    Cow.find({ motherCowNumber: doc.cowNumber, ...communityFilter }).lean(),
+                    Bull.find({ motherCowNumber: doc.cowNumber, ...communityFilter }).lean(),
                 ]);
                 return [
                     ...calves.map(d=>({doc:d, t:'calf', rel:'offspring'})),
@@ -1417,9 +1590,9 @@ app.get('/lineage/:type/:id', async (req, res) => {
                 ];
             } else if (t === 'bull'){
                 const [calves, cows, bulls] = await Promise.all([
-                    Calf.find({ sireBullNumber: doc.bullNumber }).lean(),
-                    Cow.find({ sireBullNumber: doc.bullNumber }).lean(),
-                    Bull.find({ sireBullNumber: doc.bullNumber }).lean(),
+                    Calf.find({ sireBullNumber: doc.bullNumber, ...communityFilter }).lean(),
+                    Cow.find({ sireBullNumber: doc.bullNumber, ...communityFilter }).lean(),
+                    Bull.find({ sireBullNumber: doc.bullNumber, ...communityFilter }).lean(),
                 ]);
                 return [
                     ...calves.map(d=>({doc:d, t:'calf', rel:'offspring'})),
@@ -1432,9 +1605,9 @@ app.get('/lineage/:type/:id', async (req, res) => {
 
         // Seed self node
         let rootDoc=null, rootType=null;
-        if (type === 'cow') { rootDoc = await Cow.findById(id).lean(); rootType='cow'; }
-        else if (type === 'bull') { rootDoc = await Bull.findById(id).lean(); rootType='bull'; }
-        else if (type === 'calf') { rootDoc = await Calf.findById(id).lean(); rootType='calf'; }
+        if (type === 'cow') { rootDoc = await Cow.findOne({ _id: id, ...communityFilter }).lean(); rootType='cow'; }
+        else if (type === 'bull') { rootDoc = await Bull.findOne({ _id: id, ...communityFilter }).lean(); rootType='bull'; }
+        else if (type === 'calf') { rootDoc = await Calf.findOne({ _id: id, ...communityFilter }).lean(); rootType='calf'; }
         else return res.status(400).json({ error:'Invalid type' });
         if(!rootDoc) return res.status(404).json({ error: `${type} not found` });
         const self = pushNode(rootDoc, rootType);
@@ -1448,9 +1621,9 @@ app.get('/lineage/:type/:id', async (req, res) => {
                 const n = nodeMap.get(keyOf(item.node.type, item.node._id)) || item.node; // front node object
                 // fetch original doc by id based on type
                 let doc=null;
-                if (n.type==='cow') doc = await Cow.findById(n._id).lean();
-                else if (n.type==='bull') doc = await Bull.findById(n._id).lean();
-                else if (n.type==='calf') doc = await Calf.findById(n._id).lean();
+                if (n.type==='cow') doc = await Cow.findOne({ _id: n._id, ...communityFilter }).lean();
+                else if (n.type==='bull') doc = await Bull.findOne({ _id: n._id, ...communityFilter }).lean();
+                else if (n.type==='calf') doc = await Calf.findOne({ _id: n._id, ...communityFilter }).lean();
                 const parents = await getParents(doc, n.type);
                 for (const p of parents){
                     const pn = pushNode(p.doc, p.t);
@@ -1471,9 +1644,9 @@ app.get('/lineage/:type/:id', async (req, res) => {
             for (const item of current){
                 const n = nodeMap.get(keyOf(item.node.type, item.node._id)) || item.node;
                 let doc=null;
-                if (n.type==='cow') doc = await Cow.findById(n._id).lean();
-                else if (n.type==='bull') doc = await Bull.findById(n._id).lean();
-                else if (n.type==='calf') doc = await Calf.findById(n._id).lean();
+                if (n.type==='cow') doc = await Cow.findOne({ _id: n._id, ...communityFilter }).lean();
+                else if (n.type==='bull') doc = await Bull.findOne({ _id: n._id, ...communityFilter }).lean();
+                else if (n.type==='calf') doc = await Calf.findOne({ _id: n._id, ...communityFilter }).lean();
                 const kids = await getChildren(doc, n.type);
                 for (const k of kids){
                     const kn = pushNode(k.doc, k.t);
@@ -1559,15 +1732,18 @@ app.post('/add-cattle', async (req, res) => {
             return res.status(400).json({ error: 'Cattle type is required' });
         }
 
-        // Helpers for cross-collection uniqueness
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+
+        // Helpers for cross-collection uniqueness (within community)
         const escapeRegExp = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const nameTaken = async (name) => {
             if (!name) return false;
             const rx = new RegExp('^' + escapeRegExp(name) + '$', 'i');
             const [c1, c2, c3] = await Promise.all([
-                Cow.findOne({ cowName: rx }).lean(),
-                Calf.findOne({ calfName: rx }).lean(),
-                Bull.findOne({ bullName: rx }).lean(),
+                Cow.findOne({ cowName: rx, ...communityFilter }).lean(),
+                Calf.findOne({ calfName: rx, ...communityFilter }).lean(),
+                Bull.findOne({ bullName: rx, ...communityFilter }).lean(),
             ]);
             return !!(c1 || c2 || c3);
         };
@@ -1575,19 +1751,19 @@ app.post('/add-cattle', async (req, res) => {
             if (!num) return false;
             const rx = new RegExp('^' + escapeRegExp(num) + '$', 'i');
             const [c, b] = await Promise.all([
-                Cow.findOne({ cowNumber: rx }).lean(),
-                Bull.findOne({ bullNumber: rx }).lean(),
+                Cow.findOne({ cowNumber: rx, ...communityFilter }).lean(),
+                Bull.findOne({ bullNumber: rx, ...communityFilter }).lean(),
             ]);
             return !!(c || b);
         };
 
         let newEntry;
 
-        // Helper to auto-populate parent info from numbers
+        // Helper to auto-populate parent info from numbers (within community)
         async function enrichFromNumbers(entry){
             // Mother (cow)
             if (entry.motherCowNumber && (!entry.motherCowName || !entry.motherCowBreed)){
-                const mc = await Cow.findOne({ cowNumber: entry.motherCowNumber }).lean();
+                const mc = await Cow.findOne({ cowNumber: entry.motherCowNumber, ...communityFilter }).lean();
                 if (mc){
                     entry.motherCowName = mc.cowName || entry.motherCowName;
                     entry.motherCowBreed = mc.race || entry.motherCowBreed;
@@ -1595,7 +1771,7 @@ app.post('/add-cattle', async (req, res) => {
             }
             // Sire (bull)
             if (entry.sireBullNumber && (!entry.sireBullName || !entry.sireBullBreed)){
-                const sb = await Bull.findOne({ bullNumber: entry.sireBullNumber }).lean();
+                const sb = await Bull.findOne({ bullNumber: entry.sireBullNumber, ...communityFilter }).lean();
                 if (sb){
                     entry.sireBullName = sb.bullName || entry.sireBullName;
                     entry.sireBullBreed = sb.race || entry.sireBullBreed;
@@ -1603,14 +1779,14 @@ app.post('/add-cattle', async (req, res) => {
             }
         }
 
-        // Validate parent references by type
+        // Validate parent references by type (within community)
         async function validateParentLinks(payload){
             if (payload.motherCowNumber){
-                const mc = await Cow.findOne({ cowNumber: payload.motherCowNumber }).lean();
+                const mc = await Cow.findOne({ cowNumber: payload.motherCowNumber, ...communityFilter }).lean();
                 if (!mc) return `Mother cow number ${payload.motherCowNumber} not found`;
             }
             if (payload.sireBullNumber){
-                const sb = await Bull.findOne({ bullNumber: payload.sireBullNumber }).lean();
+                const sb = await Bull.findOne({ bullNumber: payload.sireBullNumber, ...communityFilter }).lean();
                 if (!sb) return `Sire bull number ${payload.sireBullNumber} not found`;
             }
             return null;
@@ -1639,6 +1815,7 @@ app.post('/add-cattle', async (req, res) => {
                 sireBullNumber: req.body.sireBullNumber,
                 sireBullName: req.body.sireBullName,
                 sireBullBreed: req.body.sireBullBreed,
+                community: req.communityId || null
             });
             await enrichFromNumbers(newEntry);
         } else if (type === 'calf') {
@@ -1664,6 +1841,7 @@ app.post('/add-cattle', async (req, res) => {
                 sireBullNumber: req.body.sireBullNumber,
                 sireBullName: req.body.sireBullName,
                 sireBullBreed: req.body.sireBullBreed,
+                community: req.communityId || null
             });
             await enrichFromNumbers(newEntry);
         } else if (type === 'bull') {
@@ -1681,6 +1859,7 @@ app.post('/add-cattle', async (req, res) => {
                 dob: req.body.dob,
                 notes: req.body.notes,
                 isInsemination,
+                community: req.communityId || null
             };
             if (!isInsemination){
                 const parentError = await validateParentLinks(req.body);
@@ -1715,15 +1894,18 @@ app.post('/edit-cattle', async (req, res) => {
             return res.status(400).send('Invalid request');
         }
 
-        // Helpers
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+
+        // Helpers (within community)
         const escapeRegExp = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const nameTakenExcept = async (name, excludeId) => {
             if (!name) return false;
             const rx = new RegExp('^' + escapeRegExp(name) + '$', 'i');
             const [c1, c2, c3] = await Promise.all([
-                Cow.findOne({ cowName: rx }).lean(),
-                Calf.findOne({ calfName: rx }).lean(),
-                Bull.findOne({ bullName: rx }).lean(),
+                Cow.findOne({ cowName: rx, ...communityFilter }).lean(),
+                Calf.findOne({ calfName: rx, ...communityFilter }).lean(),
+                Bull.findOne({ bullName: rx, ...communityFilter }).lean(),
             ]);
             const found = c1 || c2 || c3;
             return found && String(found._id) !== String(excludeId);
@@ -1732,8 +1914,8 @@ app.post('/edit-cattle', async (req, res) => {
             if (!num) return false;
             const rx = new RegExp('^' + escapeRegExp(num) + '$', 'i');
             const [c, b] = await Promise.all([
-                Cow.findOne({ cowNumber: rx }).lean(),
-                Bull.findOne({ bullNumber: rx }).lean(),
+                Cow.findOne({ cowNumber: rx, ...communityFilter }).lean(),
+                Bull.findOne({ bullNumber: rx, ...communityFilter }).lean(),
             ]);
             const found = c || b;
             return found && String(found._id) !== String(excludeId);
@@ -1802,25 +1984,25 @@ app.post('/edit-cattle', async (req, res) => {
             return res.status(400).send('Invalid cattle type');
         }
 
-        // Auto-enrich parent fields on edits if only numbers supplied
+        // Auto-enrich parent fields on edits if only numbers supplied (within community)
         async function enrichEdit(mappedObj){
             if (mappedObj.motherCowNumber && (!mappedObj.motherCowName || !mappedObj.motherCowBreed)){
-                const mc = await Cow.findOne({ cowNumber: mappedObj.motherCowNumber }).lean();
+                const mc = await Cow.findOne({ cowNumber: mappedObj.motherCowNumber, ...communityFilter }).lean();
                 if (mc){ mappedObj.motherCowName = mc.cowName; mappedObj.motherCowBreed = mc.race; }
             }
             if (mappedObj.sireBullNumber && (!mappedObj.sireBullName || !mappedObj.sireBullBreed)){
-                const sb = await Bull.findOne({ bullNumber: mappedObj.sireBullNumber }).lean();
+                const sb = await Bull.findOne({ bullNumber: mappedObj.sireBullNumber, ...communityFilter }).lean();
                 if (sb){ mappedObj.sireBullName = sb.bullName; mappedObj.sireBullBreed = sb.race; }
             }
         }
-        // Validate parent links on edit when provided and not AI bull
+        // Validate parent links on edit when provided and not AI bull (within community)
         async function validateParentOnEdit(obj){
             if (obj.motherCowNumber !== undefined && obj.motherCowNumber) {
-                const c = await Cow.findOne({ cowNumber: obj.motherCowNumber }).lean();
+                const c = await Cow.findOne({ cowNumber: obj.motherCowNumber, ...communityFilter }).lean();
                 if (!c) return `Mother cow number ${obj.motherCowNumber} not found`;
             }
             if (obj.sireBullNumber !== undefined && obj.sireBullNumber) {
-                const b = await Bull.findOne({ bullNumber: obj.sireBullNumber }).lean();
+                const b = await Bull.findOne({ bullNumber: obj.sireBullNumber, ...communityFilter }).lean();
                 if (!b) return `Sire bull number ${obj.sireBullNumber} not found`;
             }
             return null;
@@ -1829,20 +2011,23 @@ app.post('/edit-cattle', async (req, res) => {
         if (parentErr) return res.status(400).send(parentErr);
 
         await enrichEdit(mapped);
-        const updatedEntry = await model.findByIdAndUpdate(id, mapped, { new: true });
+        const updatedEntry = await model.findOneAndUpdate({ _id: id, ...communityFilter }, mapped, { new: true });
+        if (!updatedEntry) return res.status(404).send('Entry not found');
         res.status(200).json(updatedEntry);
     } catch (err) {
         res.status(500).send(err.message);
     }
 });
 
-// Lightweight parent lookup by number (returns name & breed)
+// Lightweight parent lookup by number (returns name & breed) - within community
 app.get('/lookup/:type/number/:num', async (req,res)=>{
     try {
         const { type, num } = req.params;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         let item;
-        if (type === 'cow') item = await Cow.findOne({ cowNumber: num }).lean();
-        else if (type === 'bull') item = await Bull.findOne({ bullNumber: num }).lean();
+        if (type === 'cow') item = await Cow.findOne({ cowNumber: num, ...communityFilter }).lean();
+        else if (type === 'bull') item = await Bull.findOne({ bullNumber: num, ...communityFilter }).lean();
         else return res.status(400).json({ error:'Invalid type' });
         if (!item) return res.status(404).json({ error:'Not found' });
         return res.json({ id: item._id, number: type==='cow'?item.cowNumber:item.bullNumber, name: type==='cow'?item.cowName:item.bullName, breed: item.race, type, isInsemination: type==='bull' ? !!item.isInsemination : false });
@@ -1852,13 +2037,15 @@ app.get('/lookup/:type/number/:num', async (req,res)=>{
     }
 });
 
-// Generic number lookup (detect type and presence for validation)
+// Generic number lookup (detect type and presence for validation) - within community
 app.get('/lookup/number/:num', async (req,res)=>{
     try{
         const num = req.params.num;
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         const [cow, bull] = await Promise.all([
-            Cow.findOne({ cowNumber: num }).lean(),
-            Bull.findOne({ bullNumber: num }).lean(),
+            Cow.findOne({ cowNumber: num, ...communityFilter }).lean(),
+            Bull.findOne({ bullNumber: num, ...communityFilter }).lean(),
         ]);
         if (!cow && !bull) return res.status(404).json({ exists:false });
         if (cow) return res.json({ exists:true, type:'cow', id:cow._id, number:cow.cowNumber, name:cow.cowName, breed:cow.race });
@@ -1877,31 +2064,37 @@ app.post('/delete-cattle', async (req, res) => {
             return res.status(400).send('Invalid request');
         }
 
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
+
         let model;
         if (type === 'cow') model = Cow;
         else if (type === 'calf') model = Calf;
         else if (type === 'bull') model = Bull;
         else return res.status(400).send('Invalid cattle type');
 
-        await model.findByIdAndDelete(id);
+        const deleted = await model.findOneAndDelete({ _id: id, ...communityFilter });
+        if (!deleted) return res.status(404).send('Entry not found');
         res.status(200).send('Entry deleted successfully');
     } catch (err) {
         res.status(500).send(err.message);
     }
 });
 
-// Add route to fetch cattle data for editing
+// Add route to fetch cattle data for editing - within community
 app.get('/get-cattle', async (req, res) => {
     try {
         const { id, type } = req.query;
         if (!id || !type) return res.status(400).json({ error: 'Missing id or type' });
+        // Apply community filter for data isolation
+        const communityFilter = getCommunityFilter(req);
         let Model;
         if (type === 'cow') Model = Cow;
         else if (type === 'calf') Model = Calf;
         else if (type === 'bull') Model = Bull;
         else return res.status(400).json({ error: 'Invalid cattle type' });
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: 'Invalid id format' });
-        const entry = await Model.findById(id).lean();
+        const entry = await Model.findOne({ _id: id, ...communityFilter }).lean();
         if (!entry) return res.status(404).json({ error: 'Entry not found' });
         return res.json(entry);
     } catch (err) {

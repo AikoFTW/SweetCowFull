@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .section-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5eef0;
+        }
+        .data-table th {
+            background: #f8fafb;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+        }
+        .data-table tbody tr:hover {
+            background: #f8fafb;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-superadmin {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+        .badge-user {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .badge-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .badge-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .membership-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .membership-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/admin">Super Admin</a></li>
+            <li><a href="/admin/communities">Communities</a></li>
+            <li><a href="/admin/users" class="active">Users</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (SuperAdmin)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <h1>Manage Users</h1>
+            <a href="/admin/users/create" class="btn primary">+ Create User</a>
+        </div>
+
+        <% if (typeof success !== 'undefined' || (typeof query !== 'undefined' && query.success)) { %>
+            <div class="alert alert-success">
+                <%= typeof success !== 'undefined' ? success : 'Operation completed successfully' %>
+            </div>
+        <% } %>
+
+        <div class="section-card">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Communities</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (users.length === 0) { %>
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #6c757d; padding: 40px;">
+                                No users found. <a href="/admin/users/create">Create one now</a>
+                            </td>
+                        </tr>
+                    <% } else { %>
+                        <% users.forEach(function(u) { %>
+                            <tr>
+                                <td><strong><%= u.firstName %> <%= u.lastName %></strong></td>
+                                <td><%= u.email %></td>
+                                <td>
+                                    <span class="badge <%= u.role === 'SuperAdmin' ? 'badge-superadmin' : 'badge-user' %>">
+                                        <%= u.role %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <% if (u.memberships && u.memberships.length > 0) { %>
+                                        <div class="membership-tags">
+                                            <% u.memberships.slice(0, 3).forEach(function(m) { %>
+                                                <span class="membership-tag">
+                                                    <%= m.community ? m.community.name : 'Unknown' %>
+                                                </span>
+                                            <% }); %>
+                                            <% if (u.memberships.length > 3) { %>
+                                                <span class="membership-tag">+<%= u.memberships.length - 3 %> more</span>
+                                            <% } %>
+                                        </div>
+                                    <% } else { %>
+                                        <span style="color: #6c757d; font-size: 0.85rem;">None</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <span class="badge <%= u.isActive ? 'badge-active' : 'badge-inactive' %>">
+                                        <%= u.isActive ? 'Active' : 'Inactive' %>
+                                    </span>
+                                </td>
+                                <td><%= u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never' %></td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="/admin/users/<%= u._id %>" class="btn muted btn-sm">View</a>
+                                        <a href="/admin/users/<%= u._id %>/edit" class="btn primary btn-sm">Edit</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        html, body {
+            height: auto;
+            min-height: 100%;
+        }
+        body {
+            display: block;
+            background: linear-gradient(145deg, var(--milk), #e9f7f3 35%, #f6fbfd);
+            padding: 40px 0;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            margin: 0 auto;
+        }
+        .auth-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 40px;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .auth-header img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .auth-header h1 {
+            margin: 0 0 8px;
+            font-size: 1.75rem;
+            color: var(--ink);
+        }
+        .auth-header p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #dce8eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(16, 128, 68, 0.15);
+        }
+        .form-group small {
+            display: block;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .btn-auth {
+            width: 100%;
+            padding: 16px;
+            background: var(--green-700);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-auth:hover {
+            background: #0d6b3d;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 24px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .auth-footer a {
+            color: var(--green-700);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        .section-divider {
+            position: relative;
+            text-align: center;
+            margin: 24px 0;
+        }
+        .section-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e5eef0;
+        }
+        .section-divider span {
+            position: relative;
+            background: #fff;
+            padding: 0 16px;
+            color: #6c757d;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+                <h1>Create Account</h1>
+                <p>Register your farm to get started</p>
+            </div>
+
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert alert-error">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <form method="POST" action="/auth/register">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input 
+                            type="text" 
+                            id="firstName" 
+                            name="firstName" 
+                            value="<%= typeof firstName !== 'undefined' ? firstName : '' %>"
+                            placeholder="John"
+                            required
+                            autocomplete="given-name"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            name="lastName" 
+                            value="<%= typeof lastName !== 'undefined' ? lastName : '' %>"
+                            placeholder="Doe"
+                            required
+                            autocomplete="family-name"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        value="<%= typeof email !== 'undefined' ? email : '' %>"
+                        placeholder="farmer@example.com"
+                        required
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="section-divider">
+                    <span>Farm Information</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="farmName">Farm Name</label>
+                    <input 
+                        type="text" 
+                        id="farmName" 
+                        name="farmName" 
+                        value="<%= typeof farmName !== 'undefined' ? farmName : '' %>"
+                        placeholder="Green Valley Farm"
+                        required
+                    >
+                    <small>This will be the name of your farm community</small>
+                </div>
+
+                <div class="section-divider">
+                    <span>Security</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Create a strong password"
+                        required
+                        autocomplete="new-password"
+                        minlength="8"
+                    >
+                    <small>Must be at least 8 characters</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        placeholder="Confirm your password"
+                        required
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <button type="submit" class="btn-auth">Create Account</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="/auth/login">Sign in here</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

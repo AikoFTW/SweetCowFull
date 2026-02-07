@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            <% if (community && community.theme) { %>
+            --primary-color: <%= community.theme.primaryColor || '#108044' %>;
+            --secondary-color: <%= community.theme.secondaryColor || '#064430' %>;
+            --accent-color: <%= community.theme.accentColor || '#d0f0c0' %>;
+            <% } %>
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .form-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            max-width: 600px;
+        }
+        .form-section {
+            margin-bottom: 32px;
+        }
+        .form-section h3 {
+            margin: 0 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5eef0;
+            font-size: 1rem;
+            color: var(--primary-color, var(--green-700));
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #dce8eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color, var(--green-700));
+            box-shadow: 0 0 0 3px rgba(16, 128, 68, 0.15);
+        }
+        .form-group small {
+            display: block;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .toggle-section {
+            display: none;
+        }
+        .toggle-section.show {
+            display: block;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5eef0;
+            background: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .tab-btn:hover {
+            border-color: var(--primary-color, var(--green-700));
+        }
+        .tab-btn.active {
+            border-color: var(--primary-color, var(--green-700));
+            background: var(--accent-color, #d0f0c0);
+            color: var(--secondary-color, var(--green-700));
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/community/dashboard">Farm Stats</a></li>
+            <li><a href="/community/members" class="active">Members</a></li>
+            <li><a href="/community/settings">Farm Settings</a></li>
+            <li><a href="/community/data">Import/Export</a></li>
+            <li><a href="/cattle-registry">Cattle Registry</a></li>
+            <% if (user && user.role === 'SuperAdmin') { %>
+            <li><a href="/admin">Super Admin</a></li>
+            <% } %>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (<%= userRole %>)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <h1>Add Member</h1>
+        </div>
+
+        <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div class="form-card">
+            <!-- Tab buttons -->
+            <div class="tab-buttons">
+                <button type="button" class="tab-btn active" onclick="showTab('new')">Create New User</button>
+                <button type="button" class="tab-btn" onclick="showTab('existing')">Add Existing User</button>
+            </div>
+
+            <form method="POST" action="/community/members/create">
+                <input type="hidden" name="existingUser" id="existingUserFlag" value="">
+
+                <!-- New User Section -->
+                <div class="toggle-section show" id="newUserSection">
+                    <div class="form-section">
+                        <h3>Personal Information</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">First Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="firstName" 
+                                    name="firstName" 
+                                    value="<%= member ? member.firstName : '' %>"
+                                    placeholder="John"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="lastName">Last Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="lastName" 
+                                    name="lastName" 
+                                    value="<%= member ? member.lastName : '' %>"
+                                    placeholder="Doe"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                name="email" 
+                                value="<%= member ? member.email : '' %>"
+                                placeholder="user@example.com"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password *</label>
+                            <input 
+                                type="password" 
+                                id="password" 
+                                name="password" 
+                                placeholder="Create a password"
+                                minlength="8"
+                            >
+                            <small>Minimum 8 characters</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Existing User Section -->
+                <div class="toggle-section" id="existingUserSection">
+                    <div class="form-section">
+                        <h3>Find Existing User</h3>
+                        
+                        <div class="form-group">
+                            <label for="existingEmail">Email Address *</label>
+                            <input 
+                                type="email" 
+                                id="existingEmail" 
+                                name="email" 
+                                placeholder="Enter email of existing user"
+                                disabled
+                            >
+                            <small>Enter the email address of a user who already has an account</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Common Section -->
+                <div class="form-section">
+                    <h3>Access Level</h3>
+                    
+                    <div class="form-group">
+                        <label for="communityRole">Role in <%= community.name %> *</label>
+                        <select id="communityRole" name="communityRole" required>
+                            <option value="Member" <%= member && member.communityRole === 'Member' ? 'selected' : '' %>>Member</option>
+                            <option value="Admin" <%= member && member.communityRole === 'Admin' ? 'selected' : '' %>>Admin</option>
+                        </select>
+                        <small>
+                            <strong>Member:</strong> Can view and edit cattle data<br>
+                            <strong>Admin:</strong> Full access including member management
+                        </small>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn primary">Add Member</button>
+                    <a href="/community/members" class="btn muted">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+
+        function showTab(tab) {
+            const newSection = document.getElementById('newUserSection');
+            const existingSection = document.getElementById('existingUserSection');
+            const newEmail = document.getElementById('email');
+            const existingEmail = document.getElementById('existingEmail');
+            const password = document.getElementById('password');
+            const firstName = document.getElementById('firstName');
+            const lastName = document.getElementById('lastName');
+            const existingFlag = document.getElementById('existingUserFlag');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            if (tab === 'new') {
+                newSection.classList.add('show');
+                existingSection.classList.remove('show');
+                event.target.classList.add('active');
+                
+                newEmail.disabled = false;
+                newEmail.required = true;
+                existingEmail.disabled = true;
+                existingEmail.required = false;
+                password.required = true;
+                firstName.required = true;
+                lastName.required = true;
+                existingFlag.value = '';
+            } else {
+                existingSection.classList.add('show');
+                newSection.classList.remove('show');
+                event.target.classList.add('active');
+                
+                newEmail.disabled = true;
+                newEmail.required = false;
+                existingEmail.disabled = false;
+                existingEmail.required = true;
+                password.required = false;
+                firstName.required = false;
+                lastName.required = false;
+                existingFlag.value = 'on';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            <% if (community && community.theme) { %>
+            --primary-color: <%= community.theme.primaryColor || '#108044' %>;
+            --secondary-color: <%= community.theme.secondaryColor || '#064430' %>;
+            --accent-color: <%= community.theme.accentColor || '#d0f0c0' %>;
+            <% } %>
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .members-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .members-table th,
+        .members-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .members-table th {
+            font-weight: 600;
+            color: #6c757d;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .members-table tr:hover {
+            background: #f8fafc;
+        }
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-color, #d0f0c0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--secondary-color, var(--green-700));
+            flex-shrink: 0;
+        }
+        .member-name {
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .member-email {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .member-role {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .member-role.admin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .member-role.member {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .member-role.owner {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .status-badge.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        .empty-state h3 {
+            margin: 0 0 8px;
+            color: var(--ink);
+        }
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal-content h3 {
+            margin: 0 0 16px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .members-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .hide-mobile {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/community/dashboard">Farm Stats</a></li>
+            <li><a href="/community/members" class="active">Members</a></li>
+            <li><a href="/community/settings">Farm Settings</a></li>
+            <li><a href="/community/data">Import/Export</a></li>
+            <li><a href="/cattle-registry">Cattle Registry</a></li>
+            <% if (user && user.role === 'SuperAdmin') { %>
+            <li><a href="/admin">Super Admin</a></li>
+            <% } %>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (<%= userRole %>)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <div>
+                <h1>Team Members</h1>
+                <p style="margin: 4px 0 0; color: #6c757d; font-size: 0.9rem;"><%= community.name %></p>
+            </div>
+            <a href="/community/members/create" class="btn primary">+ Add Member</a>
+        </div>
+
+        <% if (success) { %>
+        <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div class="card">
+            <% if (members.length > 0) { %>
+            <table class="members-table">
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Role</th>
+                        <th class="hide-mobile">Status</th>
+                        <th class="hide-mobile">Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% members.forEach(function(member) { 
+                        const isOwner = community.owner && community.owner.toString() === member._id.toString();
+                    %>
+                    <tr>
+                        <td>
+                            <div class="member-info">
+                                <div class="member-avatar">
+                                    <%= member.firstName.charAt(0) %><%= member.lastName.charAt(0) %>
+                                </div>
+                                <div>
+                                    <div class="member-name"><%= member.firstName %> <%= member.lastName %></div>
+                                    <div class="member-email"><%= member.email %></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <% if (isOwner) { %>
+                            <span class="member-role owner">Owner</span>
+                            <% } else { %>
+                            <span class="member-role <%= member.communityRole.toLowerCase() %>"><%= member.communityRole %></span>
+                            <% } %>
+                        </td>
+                        <td class="hide-mobile">
+                            <span class="status-badge <%= member.isActive ? 'active' : 'inactive' %>">
+                                <%= member.isActive ? 'Active' : 'Inactive' %>
+                            </span>
+                        </td>
+                        <td class="hide-mobile">
+                            <%= member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : '—' %>
+                        </td>
+                        <td>
+                            <div class="actions-cell">
+                                <% if (!isOwner) { %>
+                                <button 
+                                    class="btn muted btn-sm" 
+                                    onclick="showRoleModal('<%= member._id %>', '<%= member.firstName %> <%= member.lastName %>', '<%= member.communityRole %>')"
+                                >
+                                    Change Role
+                                </button>
+                                <button 
+                                    class="btn danger btn-sm" 
+                                    onclick="showRemoveModal('<%= member._id %>', '<%= member.firstName %> <%= member.lastName %>')"
+                                >
+                                    Remove
+                                </button>
+                                <% } else { %>
+                                <span style="color: #6c757d; font-size: 0.8rem;">Owner (cannot modify)</span>
+                                <% } %>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+            <% } else { %>
+            <div class="empty-state">
+                <h3>No members yet</h3>
+                <p>Add team members to help manage your farm.</p>
+                <a href="/community/members/create" class="btn primary" style="margin-top: 16px;">+ Add First Member</a>
+            </div>
+            <% } %>
+        </div>
+    </main>
+
+    <!-- Role Change Modal -->
+    <div class="modal-overlay" id="roleModal">
+        <div class="modal-content">
+            <h3>Change Role</h3>
+            <p>Update role for <strong id="roleModalName"></strong></p>
+            <form id="roleForm" method="POST">
+                <div style="margin: 16px 0;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">New Role</label>
+                    <select name="communityRole" id="roleSelect" style="width: 100%; padding: 10px; border: 1px solid #dce8eb; border-radius: 8px;">
+                        <option value="Member">Member</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn primary">Update Role</button>
+                    <button type="button" class="btn muted" onclick="hideRoleModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Remove Member Modal -->
+    <div class="modal-overlay" id="removeModal">
+        <div class="modal-content">
+            <h3>Remove Member</h3>
+            <p>Are you sure you want to remove <strong id="removeModalName"></strong> from this community?</p>
+            <p style="color: #6c757d; font-size: 0.9rem;">They will lose access to all farm data.</p>
+            <form id="removeForm" method="POST">
+                <div class="modal-actions">
+                    <button type="submit" class="btn danger">Remove Member</button>
+                    <button type="button" class="btn muted" onclick="hideRemoveModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+
+        function showRoleModal(userId, name, currentRole) {
+            document.getElementById('roleModalName').textContent = name;
+            document.getElementById('roleSelect').value = currentRole;
+            document.getElementById('roleForm').action = '/community/members/' + userId + '/update-role';
+            document.getElementById('roleModal').classList.add('show');
+        }
+
+        function hideRoleModal() {
+            document.getElementById('roleModal').classList.remove('show');
+        }
+
+        function showRemoveModal(userId, name) {
+            document.getElementById('removeModalName').textContent = name;
+            document.getElementById('removeForm').action = '/community/members/' + userId + '/remove';
+            document.getElementById('removeModal').classList.add('show');
+        }
+
+        function hideRemoveModal() {
+            document.getElementById('removeModal').classList.remove('show');
+        }
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(function(modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

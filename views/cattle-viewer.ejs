@@ -15,17 +15,24 @@
                 <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
                 <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
             </button>
-            <img src="/images/icons/logo.png" alt="Sweet Cow Logo">
-            <h1>Sweet Cow</h1>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
         </div>
         <ul class="nav">
-            <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
-            <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
-            <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/community/dashboard">Farm Stats</a></li>
+            <li><a href="/cattle-viewer" class="active">Cattle Viewer</a></li>
+            <li><a href="/cattle-registry">Cattle Registry</a></li>
+            <li><a href="/community/members">Members</a></li>
+            <li><a href="/community/settings">Farm Settings</a></li>
+            <li><a href="/community/data">Import/Export</a></li>
+            <% if (typeof user !== 'undefined' && user && user.role === 'SuperAdmin') { %>
+            <li><a href="/admin">Super Admin</a></li>
+            <% } %>
         </ul>
         <footer>
             <span class="tag" style="font-size: 1rem; padding: 10px 14px;">
-                <span class="dot" style="width: 12px; height: 12px;"></span> Online
+                <span class="dot" style="width: 12px; height: 12px;"></span> <% if (typeof user !== 'undefined' && user) { %><%= user.firstName %><% } else { %>Online<% } %>
             </span>
         </footer>
     </nav>

@@ -15,6 +15,27 @@
 </head>
 <body>
   <%- include('partials/header') %>
+  <nav class="sidebar" id="sidebar">
+    <div class="brand" style="display:flex; align-items:center;">
+      <button class="close-sidebar" aria-label="Close navigation" style="background:transparent;border:none;cursor:pointer;margin-right:10px;position:relative;">
+        <span style="display:block;width:20px;height:2px;background:#000;transform:rotate(45deg);position:absolute;top:50%;left:50%;transform-origin:center;margin:-1px 0 0 -10px;"></span>
+        <span style="display:block;width:20px;height:2px;background:#000;transform:rotate(-45deg);position:absolute;top:50%;left:50%;transform-origin:center;margin:-1px 0 0 -10px;"></span>
+      </button>
+      <img src="/images/icons/logo.png" alt="Logo"><h1>Ferma Tech</h1>
+    </div>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/community/dashboard">Farm Stats</a></li>
+      <li><a href="/cattle-viewer">Cattle Viewer</a></li>
+      <li><a href="/cattle-registry">Cattle Registry</a></li>
+      <li><a href="/community/members">Members</a></li>
+      <li><a href="/community/settings">Farm Settings</a></li>
+      <li><a href="/community/data">Import/Export</a></li>
+      <% if (typeof user !== 'undefined' && user && user.role === 'SuperAdmin') { %>
+      <li><a href="/admin">Super Admin</a></li>
+      <% } %>
+    </ul>
+  </nav>
   <main style="max-width:960px;margin:0 auto;padding:16px;">
     <h2 class="hdr">Miscarriages & Losses</h2>
     <% if ((losses||[]).length===0) { %>

@@ -61,17 +61,24 @@
         <span style="display:block; width:20px; height:2px; background:black; transform:rotate(45deg); position:absolute; top:50%; left:50%; transform-origin:center; margin:-1px 0 0 -10px;"></span>
         <span style="display:block; width:20px; height:2px; background:black; transform:rotate(-45deg); position:absolute; top:50%; left:50%; transform-origin:center; margin:-1px 0 0 -10px;"></span>
       </button>
-      <img src="/images/icons/logo.png" alt="Sweet Cow Logo" style="width:48px; height:48px; object-fit:contain; border-radius:8px; margin-right:8px;">
-      <h1 style="font-size:1.4rem; margin:0;">Sweet Cow</h1>
+      <img src="/images/icons/logo.png" alt="Ferma Tech Logo" style="width:48px; height:48px; object-fit:contain; border-radius:8px; margin-right:8px;">
+      <h1 style="font-size:1.4rem; margin:0;">Ferma Tech</h1>
     </div>
     <ul class="nav" style="list-style:none; padding:0; margin:16px 0;">
-      <li><a href="/" class="<%= title === 'SweetCow Dashboard' ? 'active' : '' %>">Dashboard</a></li>
-      <li><a href="/cattle-management" class="<%= title === 'Cattle Management' ? 'active' : '' %>">Cattle Management</a></li>
-      <li><a href="/settings" class="<%= title === 'Settings' ? 'active' : '' %>">Settings</a></li>
+      <li><a href="/">Home</a></li>
+      <li><a href="/community/dashboard">Farm Stats</a></li>
+      <li><a href="/cattle-viewer">Cattle Viewer</a></li>
+      <li><a href="/cattle-registry" class="active">Cattle Registry</a></li>
+      <li><a href="/community/members">Members</a></li>
+      <li><a href="/community/settings">Farm Settings</a></li>
+      <li><a href="/community/data">Import/Export</a></li>
+      <% if (typeof user !== 'undefined' && user && user.role === 'SuperAdmin') { %>
+      <li><a href="/admin">Super Admin</a></li>
+      <% } %>
     </ul>
     <footer style="margin-top:auto; padding:12px 0;">
       <span class="tag" style="font-size:.85rem; padding:6px 10px; display:inline-flex; align-items:center; gap:6px; background:#f1f3f5; border-radius:20px;">
-        <span class="dot" style="width:10px; height:10px; background:#28a745; border-radius:50%; display:inline-block;"></span> Online
+        <span class="dot" style="width:10px; height:10px; background:#28a745; border-radius:50%; display:inline-block;"></span> <% if (typeof user !== 'undefined' && user) { %><%= user.firstName %><% } else { %>Online<% } %>
       </span>
     </footer>
   </nav>

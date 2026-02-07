@@ -1,9 +1,102 @@
+<% if (typeof isImpersonating !== 'undefined' && isImpersonating) { %>
+<div id="impersonation-banner" style="position: fixed; top: 0; left: 0; right: 0; z-index: 10001; background: linear-gradient(90deg, #7c3aed, #9333ea); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <span style="font-size: 1.2rem;">👁️</span>
+    <span><strong>Impersonating:</strong> <%= typeof community !== 'undefined' && community ? community.name : 'Unknown Community' %></span>
+  </div>
+  <form method="POST" action="/admin/stop-impersonating" style="margin: 0;">
+    <button type="submit" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+      Exit Impersonation
+    </button>
+  </form>
+</div>
+<style>
+  /* Push body content down when impersonation banner is showing */
+  body { padding-top: 50px !important; }
+  .topbar { top: 50px !important; }
+  .sidebar { top: 150px !important; }
+</style>
+<% } %>
+
 <header class="topbar" style="height: 100px;">
   <button class="hamburger" aria-label="Toggle navigation" style="margin-right: 20px;">
     <span></span>
   </button>
   <a href="/" style="display: flex; align-items: center; gap: 20px; text-decoration: none;">
-    <img src="/images/icons/logo.png" alt="Sweet Cow Logo" style="width: 64px; height: 64px; object-fit: contain; border-radius: 12px;">
-    <h1 class="top-title" style="font-size: 2rem; color: inherit;">Sweet Cow</h1>
+    <img src="/images/icons/logo.png" alt="Ferma Tech Logo" style="width: 64px; height: 64px; object-fit: contain; border-radius: 12px;">
+    <h1 class="top-title" style="font-size: 2rem; color: inherit;">Ferma Tech</h1>
   </a>
+  
+  <% if (typeof user !== 'undefined' && user) { %>
+  <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+    <% if (typeof community !== 'undefined' && community) { %>
+    <div style="text-align: right;">
+      <div style="font-weight: 600; font-size: 0.95rem; color: var(--ink);"><%= community.name %></div>
+      <div style="font-size: 0.75rem; color: #6c757d;"><%= user.firstName %> <%= user.lastName %> (<%= userRole || 'Member' %>)</div>
+    </div>
+    <% } %>
+    
+    <div class="user-menu" style="position: relative;">
+      <button id="userMenuBtn" style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f8fafb; border: 1px solid #e5eef0; border-radius: 10px; cursor: pointer; font-family: inherit;">
+        <span style="width: 32px; height: 32px; background: linear-gradient(135deg, var(--green-700), var(--green-500)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.85rem;">
+          <%= user.firstName.charAt(0) %><%= user.lastName.charAt(0) %>
+        </span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left: 4px;">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="#6c757d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      
+      <div id="userMenuDropdown" style="display: none; position: absolute; right: 0; top: calc(100% + 8px); background: #fff; border: 1px solid #e5eef0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.12); min-width: 200px; z-index: 100; overflow: hidden;">
+        <div style="padding: 12px 16px; border-bottom: 1px solid #f1f3f5;">
+          <div style="font-weight: 600; font-size: 0.9rem;"><%= user.firstName %> <%= user.lastName %></div>
+          <div style="font-size: 0.75rem; color: #6c757d;"><%= user.email %></div>
+        </div>
+        
+        <% if (user.role === 'SuperAdmin') { %>
+        <a href="/admin" style="display: block; padding: 10px 16px; color: #7c3aed; text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+          ⚡ Super Admin
+        </a>
+        <% } %>
+        
+        <% if ((typeof userRole !== 'undefined' && (userRole === 'Admin' || userRole === 'SuperAdmin')) && typeof community !== 'undefined' && community) { %>
+        <a href="/community/dashboard" style="display: block; padding: 10px 16px; color: var(--ink); text-decoration: none; font-size: 0.9rem;">
+          📊 Farm Stats
+        </a>
+        <% } %>
+        
+        <% if (user.memberships && user.memberships.length > 1) { %>
+        <a href="/select-community" style="display: block; padding: 10px 16px; color: var(--ink); text-decoration: none; font-size: 0.9rem;">
+          🔄 Switch Farm
+        </a>
+        <% } %>
+        
+        <a href="/settings" style="display: block; padding: 10px 16px; color: var(--ink); text-decoration: none; font-size: 0.9rem;">
+          ⚙️ Settings
+        </a>
+        
+        <div style="border-top: 1px solid #f1f3f5; margin-top: 4px;">
+          <a href="/auth/logout" style="display: block; padding: 10px 16px; color: #dc2626; text-decoration: none; font-size: 0.9rem;">
+            🚪 Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
 </header>
+
+<script>
+(function() {
+  const btn = document.getElementById('userMenuBtn');
+  const dropdown = document.getElementById('userMenuDropdown');
+  if (btn && dropdown) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', function() {
+      dropdown.style.display = 'none';
+    });
+  }
+})();
+</script>

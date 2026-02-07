@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            <% if (community && community.theme) { %>
+            --primary-color: <%= community.theme.primaryColor || '#108044' %>;
+            --secondary-color: <%= community.theme.secondaryColor || '#064430' %>;
+            --accent-color: <%= community.theme.accentColor || '#d0f0c0' %>;
+            <% } %>
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        .stat-card .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color, var(--green-700));
+        }
+        .stat-card .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+        .stat-card.cows .stat-value { color: #ec4899; }
+        .stat-card.bulls .stat-value { color: #3b82f6; }
+        .stat-card.calves .stat-value { color: #f59e0b; }
+        .stat-card.members .stat-value { color: var(--primary-color, var(--green-700)); }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        .card h2 {
+            margin: 0 0 20px;
+            font-size: 1.1rem;
+            color: var(--ink);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card h2 a {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        /* Ratio chart */
+        .ratio-chart {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+        .ratio-bar {
+            flex: 1;
+            height: 24px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+        }
+        .ratio-segment {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .ratio-segment.cows { background: #ec4899; }
+        .ratio-segment.bulls { background: #3b82f6; }
+        .ratio-segment.calves { background: #f59e0b; }
+        
+        .ratio-legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+        }
+        .ratio-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ratio-legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .ratio-legend-dot.cows { background: #ec4899; }
+        .ratio-legend-dot.bulls { background: #3b82f6; }
+        .ratio-legend-dot.calves { background: #f59e0b; }
+        
+        /* Member list */
+        .member-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .member-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .member-item:last-child {
+            border-bottom: none;
+        }
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-color, #d0f0c0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--secondary-color, var(--green-700));
+        }
+        .member-name {
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .member-email {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .member-role {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .member-role.admin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .member-role.member {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        /* Quick actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .quick-action {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--ink);
+            transition: all 0.2s ease;
+        }
+        .quick-action:hover {
+            background: var(--accent-color, #d0f0c0);
+            transform: translateY(-2px);
+        }
+        .quick-action-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        .quick-action-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        /* Calf gender chart */
+        .gender-chart {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        .gender-item {
+            flex: 1;
+            text-align: center;
+        }
+        .gender-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .gender-value.male { color: #3b82f6; }
+        .gender-value.female { color: #ec4899; }
+        .gender-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        /* Needs Attention Section */
+        .attention-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .attention-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .attention-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .attention-header h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .attention-count {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .attention-count.ok {
+            background: #d1fae5;
+            color: #059669;
+        }
+        .attention-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        .attention-item {
+            padding: 14px 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            transition: background 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .attention-item:last-child {
+            border-bottom: none;
+        }
+        .attention-item:hover {
+            background: #f8fafc;
+        }
+        .attention-item-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .attention-item-icon {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .attention-item-icon.cow { background: #fce7f3; }
+        .attention-item-icon.calf { background: #fef3c7; }
+        .attention-item-icon.bull { background: #dbeafe; }
+        .attention-item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--ink);
+        }
+        .attention-item-reason {
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+        .attention-item-link {
+            font-size: 0.8rem;
+            color: var(--primary-color, var(--green-700));
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            background: #f0fdf4;
+            white-space: nowrap;
+            align-self: flex-start;
+            margin-top: 4px;
+        }
+        .attention-item-link:hover {
+            background: #dcfce7;
+        }
+        .attention-empty {
+            padding: 24px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/community/dashboard" class="active">Farm Stats</a></li>
+            <li><a href="/community/members">Members</a></li>
+            <li><a href="/community/settings">Farm Settings</a></li>
+            <li><a href="/community/data">Import/Export</a></li>
+            <li><a href="/cattle-registry">Cattle Registry</a></li>
+            <% if (user && user.role === 'SuperAdmin') { %>
+            <li><a href="/admin">Super Admin</a></li>
+            <% } %>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (<%= userRole %>)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <div>
+                <h1><%= community.name %></h1>
+                <p style="margin: 4px 0 0; color: #6c757d; font-size: 0.9rem;">Farm Stats</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <a href="/community/members/create" class="btn primary">+ Add Member</a>
+                <a href="/community/settings" class="btn muted">Settings</a>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card cows">
+                <div class="stat-value"><%= stats.totalCows %></div>
+                <div class="stat-label">Cows</div>
+            </div>
+            <div class="stat-card bulls">
+                <div class="stat-value"><%= stats.totalBulls %></div>
+                <div class="stat-label">Bulls</div>
+            </div>
+            <div class="stat-card calves">
+                <div class="stat-value"><%= stats.totalCalves %></div>
+                <div class="stat-label">Calves</div>
+            </div>
+            <div class="stat-card members">
+                <div class="stat-value"><%= stats.totalMembers %></div>
+                <div class="stat-label">Team Members</div>
+            </div>
+        </div>
+
+        <!-- Needs Attention Section -->
+        <% if (typeof needsAttention !== 'undefined') { %>
+        <h2 style="margin: 0 0 16px; font-size: 1.2rem; color: var(--ink);">🔔 Needs Attention</h2>
+        <div class="attention-grid">
+            <!-- Cows Needing Insemination -->
+            <div class="attention-card">
+                <div class="attention-header">
+                    <h3>💉 Need Insemination</h3>
+                    <span class="attention-count <%= needsAttention.counts.insemination === 0 ? 'ok' : '' %>">
+                        <%= needsAttention.counts.insemination %>
+                    </span>
+                </div>
+                <div class="attention-list">
+                    <% if (needsAttention.cowsNeedingInsemination.length > 0) { %>
+                        <% needsAttention.cowsNeedingInsemination.forEach(function(cow, idx) { %>
+                        <div class="attention-item">
+                            <div class="attention-item-info" style="flex: 1;">
+                                <div class="attention-item-icon cow">🐄</div>
+                                <div style="flex: 1;">
+                                    <div class="attention-item-name">
+                                        <% if (cow.cowNumber) { %><span style="color: #6c757d; font-weight: 500;">#<%= cow.cowNumber %></span> - <% } %>
+                                        <%= cow.cowName || 'Unnamed' %>
+                                    </div>
+                                    <div class="attention-item-details" style="font-size: 0.75rem; color: #6c757d; margin-top: 6px;">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 16px;">
+                                            <span>🏷️ <strong>Breed:</strong> <%= cow.race || 'N/A' %></span>
+                                            <span>📅 <strong>DOB:</strong> <%= cow.dob ? new Date(cow.dob).toLocaleDateString() : 'N/A' %></span>
+                                            <span>🎂 <strong>Age:</strong> <%= cow.dob ? Math.floor((new Date() - new Date(cow.dob)) / (1000*60*60*24*365)) + ' years' : 'N/A' %></span>
+                                            <span>🍼 <strong>Last Calving:</strong> <%= cow.lastCalving ? new Date(cow.lastCalving).toLocaleDateString() : 'Never' %></span>
+                                        </div>
+                                    </div>
+                                    <div class="attention-item-parents" style="font-size: 0.7rem; color: #9ca3af; margin-top: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px;">
+                                        <strong>Parents:</strong>
+                                        <span style="margin-left: 8px;">🐄 Dam: <%= cow.motherCowName || cow.motherCowNumber || 'Unknown' %><% if (cow.motherCowBreed) { %> (<%= cow.motherCowBreed %>)<% } %></span>
+                                        <span style="margin-left: 12px;">🐂 Sire: <%= cow.sireBullName || cow.sireBullNumber || 'Unknown' %><% if (cow.sireBullBreed) { %> (<%= cow.sireBullBreed %>)<% } %></span>
+                                    </div>
+                                    <% if (cow.notes) { %>
+                                    <details class="attention-notes" style="margin-top: 6px;">
+                                        <summary style="font-size: 0.7rem; color: #6c757d; cursor: pointer; user-select: none;">📝 Notes (click to expand)</summary>
+                                        <div style="font-size: 0.75rem; color: #374151; margin-top: 4px; padding: 8px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b;"><%= cow.notes %></div>
+                                    </details>
+                                    <% } %>
+                                    <div class="attention-item-reason" style="color: #f59e0b; font-weight: 600; margin-top: 8px; padding: 4px 8px; background: #fef3c7; border-radius: 4px; display: inline-block;">⚠️ <%= cow.reason %></div>
+                                </div>
+                            </div>
+                            <a href="/profile/cow/<%= cow._id %>" class="attention-item-link">View</a>
+                        </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="attention-empty">✅ All cows are on track!</div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Cows Due for Calving -->
+            <div class="attention-card">
+                <div class="attention-header">
+                    <h3>🍼 Due for Calving</h3>
+                    <span class="attention-count <%= needsAttention.counts.calving === 0 ? 'ok' : '' %>">
+                        <%= needsAttention.counts.calving %>
+                    </span>
+                </div>
+                <div class="attention-list">
+                    <% if (needsAttention.cowsDueForCalving.length > 0) { %>
+                        <% needsAttention.cowsDueForCalving.forEach(function(cow, idx) { %>
+                        <div class="attention-item">
+                            <div class="attention-item-info" style="flex: 1;">
+                                <div class="attention-item-icon cow">🐄</div>
+                                <div style="flex: 1;">
+                                    <div class="attention-item-name">
+                                        <% if (cow.cowNumber) { %><span style="color: #6c757d; font-weight: 500;">#<%= cow.cowNumber %></span> - <% } %>
+                                        <%= cow.cowName || 'Unnamed' %>
+                                    </div>
+                                    <div class="attention-item-details" style="font-size: 0.75rem; color: #6c757d; margin-top: 6px;">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 16px;">
+                                            <span>🏷️ <strong>Breed:</strong> <%= cow.race || 'N/A' %></span>
+                                            <span>📅 <strong>DOB:</strong> <%= cow.dob ? new Date(cow.dob).toLocaleDateString() : 'N/A' %></span>
+                                            <span>🎂 <strong>Age:</strong> <%= cow.dob ? Math.floor((new Date() - new Date(cow.dob)) / (1000*60*60*24*365)) + ' years' : 'N/A' %></span>
+                                            <span>🍼 <strong>Last Calving:</strong> <%= cow.lastCalving ? new Date(cow.lastCalving).toLocaleDateString() : 'Never' %></span>
+                                            <span style="grid-column: span 2;">📆 <strong>Due Date:</strong> <%= new Date(cow.dueDate).toLocaleDateString() %> (<%= cow.daysUntilDue %> days)</span>
+                                        </div>
+                                    </div>
+                                    <div class="attention-item-parents" style="font-size: 0.7rem; color: #9ca3af; margin-top: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px;">
+                                        <strong>Parents:</strong>
+                                        <span style="margin-left: 8px;">🐄 Dam: <%= cow.motherCowName || cow.motherCowNumber || 'Unknown' %><% if (cow.motherCowBreed) { %> (<%= cow.motherCowBreed %>)<% } %></span>
+                                        <span style="margin-left: 12px;">🐂 Sire: <%= cow.sireBullName || cow.sireBullNumber || 'Unknown' %><% if (cow.sireBullBreed) { %> (<%= cow.sireBullBreed %>)<% } %></span>
+                                    </div>
+                                    <% if (cow.notes) { %>
+                                    <details class="attention-notes" style="margin-top: 6px;">
+                                        <summary style="font-size: 0.7rem; color: #6c757d; cursor: pointer; user-select: none;">📝 Notes (click to expand)</summary>
+                                        <div style="font-size: 0.75rem; color: #374151; margin-top: 4px; padding: 8px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b;"><%= cow.notes %></div>
+                                    </details>
+                                    <% } %>
+                                    <div class="attention-item-reason" style="color: <%= cow.daysUntilDue < 0 ? '#dc2626' : '#f59e0b' %>; font-weight: 600; margin-top: 8px; padding: 4px 8px; background: <%= cow.daysUntilDue < 0 ? '#fee2e2' : '#fef3c7' %>; border-radius: 4px; display: inline-block;"><%= cow.daysUntilDue < 0 ? '🚨' : '⚠️' %> <%= cow.reason %></div>
+                                </div>
+                            </div>
+                            <a href="/profile/cow/<%= cow._id %>" class="attention-item-link">View</a>
+                        </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="attention-empty">✅ No cows due for calving</div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Calves Ready for Graduation -->
+            <div class="attention-card">
+                <div class="attention-header">
+                    <h3>🎓 Ready for Graduation</h3>
+                    <span class="attention-count <%= needsAttention.counts.graduation === 0 ? 'ok' : '' %>">
+                        <%= needsAttention.counts.graduation %>
+                    </span>
+                </div>
+                <div class="attention-list">
+                    <% if (needsAttention.calvesReadyForGraduation.length > 0) { %>
+                        <% needsAttention.calvesReadyForGraduation.forEach(function(calf, idx) { %>
+                        <div class="attention-item">
+                            <div class="attention-item-info" style="flex: 1;">
+                                <div class="attention-item-icon calf">🐮</div>
+                                <div style="flex: 1;">
+                                    <div class="attention-item-name">
+                                        <%= calf.calfName || 'Unnamed' %>
+                                        <span style="font-size: 0.8rem; font-weight: normal; color: <%= calf.gender === 'female' ? '#ec4899' : '#3b82f6' %>; margin-left: 6px;"><%= calf.gender === 'female' ? '♀ Female' : '♂ Male' %></span>
+                                    </div>
+                                    <div class="attention-item-details" style="font-size: 0.75rem; color: #6c757d; margin-top: 6px;">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 16px;">
+                                            <span>🏷️ <strong>Breed:</strong> <%= calf.calfBreed || 'N/A' %></span>
+                                            <span>📅 <strong>DOB:</strong> <%= new Date(calf.birthDate).toLocaleDateString() %></span>
+                                            <span>⏱️ <strong>Age:</strong> <%= calf.ageInMonths %> months (<%= Math.floor((new Date() - new Date(calf.birthDate)) / (1000*60*60*24)) %> days)</span>
+                                            <span>💚 <strong>Status:</strong> <%= calf.status || 'alive' %></span>
+                                        </div>
+                                    </div>
+                                    <div class="attention-item-parents" style="font-size: 0.7rem; color: #9ca3af; margin-top: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px;">
+                                        <strong>Parents:</strong>
+                                        <span style="margin-left: 8px;">🐄 Dam: <%= calf.motherCowName || calf.motherCowNumber || 'Unknown' %><% if (calf.motherCowBreed) { %> (<%= calf.motherCowBreed %>)<% } %></span>
+                                        <span style="margin-left: 12px;">🐂 Sire: <%= calf.sireBullName || calf.sireBullNumber || 'Unknown' %><% if (calf.sireBullBreed) { %> (<%= calf.sireBullBreed %>)<% } %></span>
+                                    </div>
+                                    <% if (calf.notes) { %>
+                                    <details class="attention-notes" style="margin-top: 6px;">
+                                        <summary style="font-size: 0.7rem; color: #6c757d; cursor: pointer; user-select: none;">📝 Notes (click to expand)</summary>
+                                        <div style="font-size: 0.75rem; color: #374151; margin-top: 4px; padding: 8px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b;"><%= calf.notes %></div>
+                                    </details>
+                                    <% } %>
+                                    <div class="attention-item-reason" style="color: #16a34a; font-weight: 600; margin-top: 8px; padding: 4px 8px; background: #dcfce7; border-radius: 4px; display: inline-block;">🎓 Ready to become <%= calf.gender === 'female' ? '🐄 Cow' : '🐂 Bull' %></div>
+                                </div>
+                            </div>
+                            <a href="/profile/calf/<%= calf._id %>" class="attention-item-link">View</a>
+                        </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="attention-empty">✅ No calves ready for graduation</div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Calves Ready for Weaning -->
+            <div class="attention-card">
+                <div class="attention-header">
+                    <h3>🥛 Ready for Weaning</h3>
+                    <span class="attention-count <%= needsAttention.counts.weaning === 0 ? 'ok' : '' %>">
+                        <%= needsAttention.counts.weaning %>
+                    </span>
+                </div>
+                <div class="attention-list">
+                    <% if (needsAttention.calvesReadyForWeaning.length > 0) { %>
+                        <% needsAttention.calvesReadyForWeaning.forEach(function(calf, idx) { %>
+                        <div class="attention-item">
+                            <div class="attention-item-info" style="flex: 1;">
+                                <div class="attention-item-icon calf">🐮</div>
+                                <div style="flex: 1;">
+                                    <div class="attention-item-name">
+                                        <%= calf.calfName || 'Unnamed' %>
+                                        <span style="font-size: 0.8rem; font-weight: normal; color: <%= calf.gender === 'female' ? '#ec4899' : '#3b82f6' %>; margin-left: 6px;"><%= calf.gender === 'female' ? '♀ Female' : '♂ Male' %></span>
+                                    </div>
+                                    <div class="attention-item-details" style="font-size: 0.75rem; color: #6c757d; margin-top: 6px;">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 16px;">
+                                            <span>🏷️ <strong>Breed:</strong> <%= calf.calfBreed || 'N/A' %></span>
+                                            <span>📅 <strong>DOB:</strong> <%= new Date(calf.birthDate).toLocaleDateString() %></span>
+                                            <span>⏱️ <strong>Age:</strong> <%= calf.ageInDays %> days (<%= Math.floor(calf.ageInDays / 30) %> months)</span>
+                                            <span>💚 <strong>Status:</strong> <%= calf.status || 'alive' %></span>
+                                        </div>
+                                    </div>
+                                    <div class="attention-item-parents" style="font-size: 0.7rem; color: #9ca3af; margin-top: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px;">
+                                        <strong>Parents:</strong>
+                                        <span style="margin-left: 8px;">🐄 Dam: <%= calf.motherCowName || calf.motherCowNumber || 'Unknown' %><% if (calf.motherCowBreed) { %> (<%= calf.motherCowBreed %>)<% } %></span>
+                                        <span style="margin-left: 12px;">🐂 Sire: <%= calf.sireBullName || calf.sireBullNumber || 'Unknown' %><% if (calf.sireBullBreed) { %> (<%= calf.sireBullBreed %>)<% } %></span>
+                                    </div>
+                                    <% if (calf.notes) { %>
+                                    <details class="attention-notes" style="margin-top: 6px;">
+                                        <summary style="font-size: 0.7rem; color: #6c757d; cursor: pointer; user-select: none;">📝 Notes (click to expand)</summary>
+                                        <div style="font-size: 0.75rem; color: #374151; margin-top: 4px; padding: 8px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b;"><%= calf.notes %></div>
+                                    </details>
+                                    <% } %>
+                                    <div class="attention-item-reason" style="color: #d97706; font-weight: 600; margin-top: 8px; padding: 4px 8px; background: #fef3c7; border-radius: 4px; display: inline-block;">🥛 Ready for weaning</div>
+                                </div>
+                            </div>
+                            <a href="/profile/calf/<%= calf._id %>" class="attention-item-link">View</a>
+                        </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="attention-empty">✅ No calves ready for weaning</div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
+        <div class="dashboard-grid">
+            <!-- Main content -->
+            <div>
+                <!-- Cattle Ratio -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2>Cattle Distribution</h2>
+                    <% 
+                        const total = stats.totalCows + stats.totalBulls + stats.totalCalves;
+                        const cowPct = total > 0 ? (stats.totalCows / total * 100).toFixed(1) : 0;
+                        const bullPct = total > 0 ? (stats.totalBulls / total * 100).toFixed(1) : 0;
+                        const calfPct = total > 0 ? (stats.totalCalves / total * 100).toFixed(1) : 0;
+                    %>
+                    <div class="ratio-chart">
+                        <div class="ratio-bar">
+                            <div class="ratio-segment cows" style="width: <%= cowPct %>%"></div>
+                            <div class="ratio-segment bulls" style="width: <%= bullPct %>%"></div>
+                            <div class="ratio-segment calves" style="width: <%= calfPct %>%"></div>
+                        </div>
+                    </div>
+                    <div class="ratio-legend">
+                        <div class="ratio-legend-item">
+                            <span class="ratio-legend-dot cows"></span>
+                            <span>Cows (<%= cowPct %>%)</span>
+                        </div>
+                        <div class="ratio-legend-item">
+                            <span class="ratio-legend-dot bulls"></span>
+                            <span>Bulls (<%= bullPct %>%)</span>
+                        </div>
+                        <div class="ratio-legend-item">
+                            <span class="ratio-legend-dot calves"></span>
+                            <span>Calves (<%= calfPct %>%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calf Gender Distribution -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2>Calf Gender Distribution</h2>
+                    <div class="gender-chart">
+                        <div class="gender-item">
+                            <div class="gender-value male"><%= stats.maleCalves %></div>
+                            <div class="gender-label">Male Calves</div>
+                        </div>
+                        <div style="width: 1px; height: 40px; background: #e5e7eb;"></div>
+                        <div class="gender-item">
+                            <div class="gender-value female"><%= stats.femaleCalves %></div>
+                            <div class="gender-label">Female Calves</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <h2>Quick Actions</h2>
+                    <div class="quick-actions">
+                        <a href="/cattle-registry" class="quick-action">
+                            <span class="quick-action-icon">🐄</span>
+                            <span class="quick-action-label">View Cattle</span>
+                        </a>
+                        <a href="/cattle-registry?action=addCow" class="quick-action">
+                            <span class="quick-action-icon">➕</span>
+                            <span class="quick-action-label">Add Cow</span>
+                        </a>
+                        <a href="/cattle-registry?action=addBull" class="quick-action">
+                            <span class="quick-action-icon">🐂</span>
+                            <span class="quick-action-label">Add Bull</span>
+                        </a>
+                        <a href="/cattle-registry?action=addCalf" class="quick-action">
+                            <span class="quick-action-icon">🐮</span>
+                            <span class="quick-action-label">Add Calf</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar content -->
+            <div>
+                <!-- Team Members -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2>
+                        Team Members
+                        <a href="/community/members">View All</a>
+                    </h2>
+                    <ul class="member-list">
+                        <% members.slice(0, 5).forEach(function(member) { %>
+                        <li class="member-item">
+                            <div class="member-info">
+                                <div class="member-avatar">
+                                    <%= member.firstName.charAt(0) %><%= member.lastName.charAt(0) %>
+                                </div>
+                                <div>
+                                    <div class="member-name"><%= member.firstName %> <%= member.lastName %></div>
+                                    <div class="member-email"><%= member.email %></div>
+                                </div>
+                            </div>
+                            <span class="member-role <%= member.communityRole.toLowerCase() %>">
+                                <%= member.communityRole %>
+                            </span>
+                        </li>
+                        <% }); %>
+                    </ul>
+                    <% if (members.length === 0) { %>
+                    <p style="text-align: center; color: #6c757d; padding: 20px 0;">No members yet</p>
+                    <% } %>
+                </div>
+
+                <!-- Farm Info -->
+                <div class="card">
+                    <h2>Farm Info</h2>
+                    <div style="font-size: 0.9rem; color: #6c757d;">
+                        <% if (community.address && (community.address.city || community.address.state)) { %>
+                        <p style="margin: 0 0 8px;">
+                            📍 <%= community.address.city %><%= community.address.city && community.address.state ? ', ' : '' %><%= community.address.state %>
+                        </p>
+                        <% } %>
+                        <% if (community.contactEmail) { %>
+                        <p style="margin: 0 0 8px;">
+                            ✉️ <%= community.contactEmail %>
+                        </p>
+                        <% } %>
+                        <% if (community.contactPhone) { %>
+                        <p style="margin: 0;">
+                            📞 <%= community.contactPhone %>
+                        </p>
+                        <% } %>
+                        <% if (!community.address?.city && !community.contactEmail && !community.contactPhone) { %>
+                        <p style="margin: 0;">No contact info set. <a href="/community/settings">Add info</a></p>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+    </script>
+</body>
+</html>

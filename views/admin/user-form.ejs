@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .form-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            max-width: 600px;
+        }
+        .form-section {
+            margin-bottom: 32px;
+        }
+        .form-section h3 {
+            margin: 0 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5eef0;
+            font-size: 1rem;
+            color: var(--green-700);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #dce8eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(16, 128, 68, 0.15);
+        }
+        .form-group small {
+            display: block;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/admin">Super Admin</a></li>
+            <li><a href="/admin/communities">Communities</a></li>
+            <li><a href="/admin/users" class="active">Users</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= typeof user !== 'undefined' ? user.firstName : '' %> (SuperAdmin)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <h1><%= typeof user !== 'undefined' && user && user._id ? 'Edit' : 'Create' %> User</h1>
+        </div>
+
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <div class="form-card">
+            <% const targetUser = typeof user !== 'undefined' && user && user._id ? user : null; %>
+            <form method="POST" action="<%= targetUser ? '/admin/users/' + targetUser._id + '/edit' : '/admin/users/create' %>">
+                
+                <div class="form-section">
+                    <h3>Personal Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name *</label>
+                            <input 
+                                type="text" 
+                                id="firstName" 
+                                name="firstName" 
+                                value="<%= targetUser ? targetUser.firstName : '' %>"
+                                placeholder="John"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lastName">Last Name *</label>
+                            <input 
+                                type="text" 
+                                id="lastName" 
+                                name="lastName" 
+                                value="<%= targetUser ? targetUser.lastName : '' %>"
+                                placeholder="Doe"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            value="<%= targetUser ? targetUser.email : '' %>"
+                            placeholder="user@example.com"
+                            required
+                            <%= targetUser ? 'readonly' : '' %>
+                        >
+                        <% if (targetUser) { %>
+                            <small>Email cannot be changed after account creation</small>
+                        <% } %>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Access & Security</h3>
+                    
+                    <div class="form-group">
+                        <label for="role">Platform Role *</label>
+                        <select id="role" name="role" required>
+                            <option value="User" <%= targetUser && targetUser.role === 'User' ? 'selected' : '' %>>User</option>
+                            <option value="SuperAdmin" <%= targetUser && targetUser.role === 'SuperAdmin' ? 'selected' : '' %>>Super Admin</option>
+                        </select>
+                        <small>SuperAdmin has access to all communities and platform settings</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password <%= targetUser ? '(leave blank to keep current)' : '*' %></label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="<%= targetUser ? 'Enter new password to change' : 'Create a password' %>"
+                            <%= targetUser ? '' : 'required' %>
+                            minlength="8"
+                        >
+                        <small>Minimum 8 characters</small>
+                    </div>
+
+                    <% if (targetUser) { %>
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input 
+                                type="checkbox" 
+                                name="isActive" 
+                                <%= targetUser.isActive ? 'checked' : '' %>
+                            >
+                            <span>Account is active</span>
+                        </label>
+                        <small>Inactive accounts cannot log in</small>
+                    </div>
+                    <% } %>
+                </div>
+
+                <% if (!targetUser) { %>
+                <div class="form-section">
+                    <h3>Initial Community Membership (Optional)</h3>
+                    
+                    <div class="form-group">
+                        <label for="communityId">Add to Community</label>
+                        <select id="communityId" name="communityId">
+                            <option value="">— No community —</option>
+                            <% communities.forEach(function(c) { %>
+                                <option value="<%= c._id %>"><%= c.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="communityRole">Community Role</label>
+                        <select id="communityRole" name="communityRole">
+                            <option value="Member">Member</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <% } %>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn primary">
+                        <%= targetUser ? 'Update' : 'Create' %> User
+                    </button>
+                    <a href="/admin/users" class="btn muted">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .form-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            max-width: 700px;
+        }
+        .form-section {
+            margin-bottom: 32px;
+        }
+        .form-section h3 {
+            margin: 0 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5eef0;
+            font-size: 1rem;
+            color: var(--green-700);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #dce8eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(16, 128, 68, 0.15);
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .form-group small {
+            display: block;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand" style="display: flex; align-items: center;">
+            <button class="close-sidebar" aria-label="Close navigation" style="background: transparent; border: none; cursor: pointer; margin-right: 10px; position: relative;">
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background: black; transform: rotate(-45deg); position: absolute; top: 50%; left: 50%; transform-origin: center; margin: -1px 0 0 -10px;"></span>
+            </button>
+            <img src="/images/icons/logo.png" alt="Ferma Tech Logo">
+            <h1>Ferma Tech</h1>
+        </div>
+        <ul class="nav">
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/admin">Super Admin</a></li>
+            <li><a href="/admin/communities" class="active">Communities</a></li>
+            <li><a href="/admin/users">Users</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+        <footer>
+            <span class="tag">
+                <span class="dot"></span> <%= user.firstName %> (SuperAdmin)
+            </span>
+        </footer>
+    </nav>
+
+    <main class="content">
+        <div class="page-header">
+            <h1><%= community && community._id ? 'Edit' : 'Create' %> Community</h1>
+        </div>
+
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <div class="form-card">
+            <form method="POST" action="<%= community && community._id ? '/admin/communities/' + community._id + '/edit' : '/admin/communities/create' %>">
+                
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="name">Community/Farm Name *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            value="<%= community ? community.name : '' %>"
+                            placeholder="Green Valley Farm"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description"
+                            placeholder="Brief description of the farm..."
+                        ><%= community ? community.description : '' %></textarea>
+                    </div>
+                </div>
+
+                <% if (!community || !community._id) { %>
+                <div class="form-section">
+                    <h3>Farm Owner</h3>
+                    
+                    <div class="form-group">
+                        <label for="ownerId">Select Existing User</label>
+                        <select id="ownerId" name="ownerId" onchange="toggleNewOwnerFields()">
+                            <option value="new">— Create New User —</option>
+                            <% if (typeof users !== 'undefined' && users) { %>
+                            <% users.forEach(function(u) { %>
+                                <option value="<%= u._id %>" <%= community && community.ownerId && community.ownerId.toString() === u._id.toString() ? 'selected' : '' %>>
+                                    <%= u.firstName %> <%= u.lastName %> (<%= u.email %>)
+                                </option>
+                            <% }); %>
+                            <% } %>
+                        </select>
+                        <small>Choose an existing user or create a new one as the farm owner</small>
+                    </div>
+
+                    <div id="newOwnerFields">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ownerFirstName">First Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="ownerFirstName" 
+                                    name="ownerFirstName" 
+                                    value="<%= community ? community.ownerFirstName : '' %>"
+                                    placeholder="John"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="ownerLastName">Last Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="ownerLastName" 
+                                    name="ownerLastName" 
+                                    value="<%= community ? community.ownerLastName : '' %>"
+                                    placeholder="Doe"
+                                >
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ownerEmail">Email *</label>
+                            <input 
+                                type="email" 
+                                id="ownerEmail" 
+                                name="ownerEmail" 
+                                value="<%= community ? community.ownerEmail : '' %>"
+                                placeholder="owner@example.com"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ownerPassword">Password *</label>
+                            <input 
+                                type="password" 
+                                id="ownerPassword" 
+                                name="ownerPassword" 
+                                placeholder="Minimum 8 characters"
+                                minlength="8"
+                            >
+                            <small>The owner will use this password to log in</small>
+                        </div>
+                    </div>
+                </div>
+                <% } %>
+
+                <div class="form-section">
+                    <h3>Contact Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contactPhone">Phone</label>
+                            <input 
+                                type="tel" 
+                                id="contactPhone" 
+                                name="contactPhone" 
+                                value="<%= community ? community.contactPhone : '' %>"
+                                placeholder="+1 (555) 123-4567"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contactEmail">Email</label>
+                            <input 
+                                type="email" 
+                                id="contactEmail" 
+                                name="contactEmail" 
+                                value="<%= community ? community.contactEmail : '' %>"
+                                placeholder="contact@farm.com"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Address</h3>
+                    
+                    <div class="form-group">
+                        <label for="street">Street Address</label>
+                        <input 
+                            type="text" 
+                            id="street" 
+                            name="street" 
+                            value="<%= community ? community.street : '' %>"
+                            placeholder="123 Farm Road"
+                        >
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="city">City</label>
+                            <input 
+                                type="text" 
+                                id="city" 
+                                name="city" 
+                                value="<%= community ? community.city : '' %>"
+                                placeholder="Springfield"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="state">State/Province</label>
+                            <input 
+                                type="text" 
+                                id="state" 
+                                name="state" 
+                                value="<%= community ? community.state : '' %>"
+                                placeholder="IL"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <input 
+                                type="text" 
+                                id="country" 
+                                name="country" 
+                                value="<%= community ? community.country : '' %>"
+                                placeholder="USA"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="postalCode">Postal Code</label>
+                            <input 
+                                type="text" 
+                                id="postalCode" 
+                                name="postalCode" 
+                                value="<%= community ? community.postalCode : '' %>"
+                                placeholder="62701"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <% if (community && community._id) { %>
+                <div class="form-section">
+                    <h3>Status</h3>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input 
+                                type="checkbox" 
+                                name="isActive" 
+                                <%= community.isActive ? 'checked' : '' %>
+                            >
+                            <span>Community is active</span>
+                        </label>
+                        <small>Inactive communities cannot be accessed by their members</small>
+                    </div>
+                </div>
+                <% } %>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn primary">
+                        <%= community && community._id ? 'Update' : 'Create' %> Community
+                    </button>
+                    <a href="/admin/communities" class="btn muted">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+        document.querySelector('.hamburger').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('open');
+        });
+        document.querySelector('.close-sidebar').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('open');
+        });
+
+        function toggleNewOwnerFields() {
+            const select = document.getElementById('ownerId');
+            const newOwnerFields = document.getElementById('newOwnerFields');
+            if (select && newOwnerFields) {
+                if (select.value === 'new') {
+                    newOwnerFields.style.display = 'block';
+                } else {
+                    newOwnerFields.style.display = 'none';
+                }
+            }
+        }
+        // Initialize on page load
+        toggleNewOwnerFields();
+    </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Ferma Tech</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, var(--milk), #e9f7f3 35%, #f6fbfd);
+        }
+        .error-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            text-align: center;
+        }
+        .error-card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 60px 40px;
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: var(--green-700);
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            color: var(--ink);
+            margin: 0 0 12px;
+        }
+        .error-message {
+            color: #6c757d;
+            font-size: 1rem;
+            margin: 0 0 32px;
+        }
+        .btn-back {
+            display: inline-block;
+            padding: 14px 28px;
+            background: var(--green-700);
+            color: #fff;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-back:hover {
+            background: #0d6b3d;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-card">
+            <div class="error-code"><%= typeof error !== 'undefined' && error.status ? error.status : '500' %></div>
+            <h1 class="error-title"><%= typeof title !== 'undefined' ? title : 'Error' %></h1>
+            <p class="error-message"><%= typeof message !== 'undefined' ? message : 'Something went wrong.' %></p>
+            <a href="/" class="btn-back">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>
