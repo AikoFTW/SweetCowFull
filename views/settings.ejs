@@ -114,6 +114,103 @@
           <button type="submit" id="save-settings" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer;">Save Settings</button>
         </form>
 
+        <!-- Import/Export Section -->
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
+          <h3 style="margin-bottom: 20px;">Data Import/Export</h3>
+          
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Export Section -->
+            <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
+              <legend style="font-weight: bold; padding: 0 10px;">Export Data</legend>
+              <p style="color: #666; margin-bottom: 15px;">Download your data as a JSON backup file.</p>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <a href="/export/all" download class="export-btn" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block;">Export All Data</a>
+                <a href="/export/settings" download class="export-btn" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block;">Export Settings Only</a>
+                <a href="/export/cows" download class="export-btn" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block;">Export Cows</a>
+                <a href="/export/bulls" download class="export-btn" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block;">Export Bulls</a>
+                <a href="/export/calves" download class="export-btn" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block;">Export Calves</a>
+              </div>
+            </fieldset>
+            
+            <!-- Import Section -->
+            <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
+              <legend style="font-weight: bold; padding: 0 10px;">Import Data</legend>
+              <p style="color: #666; margin-bottom: 15px;">Restore data from a previously exported JSON file.</p>
+              <div style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="file" id="import-file" accept=".json" style="padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+                <button type="button" id="import-preview-btn" style="padding: 10px 20px; background-color: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; width: fit-content;" disabled>Preview Import</button>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+
+        <!-- Import Preview/Review Modal -->
+        <div id="import-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; overflow-y: auto;">
+          <div style="position: relative; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; max-width: 900px; max-height: calc(100vh - 40px); overflow-y: auto;">
+            <h3 id="import-modal-title" style="margin-bottom: 20px;">Import Preview</h3>
+            
+            <div id="import-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+              <!-- Summary will be populated by JS -->
+            </div>
+            
+            <!-- Duplicate Handling Options -->
+            <div id="duplicate-options" style="margin-bottom: 20px; display: none;">
+              <label style="font-weight: bold; display: block; margin-bottom: 10px;">How would you like to handle duplicates?</label>
+              <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button type="button" class="dupe-option-btn" data-action="overwrite-all" style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer;">Overwrite All</button>
+                <button type="button" class="dupe-option-btn" data-action="skip-all" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer;">Skip All Duplicates</button>
+                <button type="button" class="dupe-option-btn" data-action="review" style="padding: 10px 20px; background-color: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer;">Review Each</button>
+              </div>
+            </div>
+            
+            <!-- Detailed Review Section -->
+            <div id="review-section" style="display: none;">
+              <!-- Settings Review -->
+              <div id="review-settings" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                <h4 style="margin-bottom: 10px;">Settings Conflict</h4>
+                <p style="color: #666; margin-bottom: 10px;">Settings already exist. What would you like to do?</p>
+                <div style="display: flex; gap: 10px;">
+                  <button type="button" class="review-decision" data-type="settings" data-decision="replace" style="padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Replace</button>
+                  <button type="button" class="review-decision" data-type="settings" data-decision="skip" style="padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Keep Existing</button>
+                </div>
+              </div>
+              
+              <!-- Cows Review -->
+              <div id="review-cows" style="display: none; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Cow Duplicates</h4>
+                <div id="cow-duplicates-list" style="max-height: 300px; overflow-y: auto;"></div>
+              </div>
+              
+              <!-- Bulls Review -->
+              <div id="review-bulls" style="display: none; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Bull Duplicates</h4>
+                <div id="bull-duplicates-list" style="max-height: 300px; overflow-y: auto;"></div>
+              </div>
+              
+              <!-- Calves Review -->
+              <div id="review-calves" style="display: none; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Calf Duplicates</h4>
+                <div id="calf-duplicates-list" style="max-height: 300px; overflow-y: auto;"></div>
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+              <button type="button" id="import-cancel-btn" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+              <button type="button" id="import-execute-btn" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>Import Data</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import Results Modal -->
+        <div id="import-results-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1001;">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+            <h3 style="margin-bottom: 20px;">Import Complete</h3>
+            <div id="import-results-content" style="margin-bottom: 20px;"></div>
+            <button type="button" id="import-results-close" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">Close</button>
+          </div>
+        </div>
+
         <div id="confirmation" style="display: none; margin-top: 20px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background-color: #f8f9fa;">
           <h4>Settings Updated</h4>
           <ul id="changed-settings" style="list-style: none; padding: 0;">
@@ -235,6 +332,323 @@
       okayButton.addEventListener('click', () => {
         popup.style.display = 'none';
       });
+
+      // ========== IMPORT/EXPORT FUNCTIONALITY ==========
+      
+      let importData = null;
+      let importPreview = null;
+      let importDecisions = { settings: 'skip', cows: {}, bulls: {}, calves: {} };
+      
+      const importFileInput = document.getElementById('import-file');
+      const importPreviewBtn = document.getElementById('import-preview-btn');
+      const importModal = document.getElementById('import-modal');
+      const importSummary = document.getElementById('import-summary');
+      const duplicateOptions = document.getElementById('duplicate-options');
+      const reviewSection = document.getElementById('review-section');
+      const importExecuteBtn = document.getElementById('import-execute-btn');
+      const importCancelBtn = document.getElementById('import-cancel-btn');
+      const importResultsModal = document.getElementById('import-results-modal');
+      const importResultsContent = document.getElementById('import-results-content');
+      const importResultsClose = document.getElementById('import-results-close');
+      
+      // Enable preview button when file selected
+      importFileInput.addEventListener('change', (e) => {
+        importPreviewBtn.disabled = !e.target.files.length;
+      });
+      
+      // Preview import
+      importPreviewBtn.addEventListener('click', async () => {
+        const file = importFileInput.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          importData = JSON.parse(text);
+          
+          // Send to server for preview
+          const response = await fetch('/import/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: text,
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            alert('Preview failed: ' + (err.error || 'Unknown error'));
+            return;
+          }
+          
+          importPreview = await response.json();
+          showImportModal();
+        } catch (err) {
+          alert('Failed to read file: ' + err.message);
+        }
+      });
+      
+      function showImportModal() {
+        // Reset decisions
+        importDecisions = { settings: 'skip', cows: {}, bulls: {}, calves: {} };
+        
+        // Count items and conflicts
+        const settingsConflict = importPreview.settings?.hasConflict || false;
+        const cowConflicts = importPreview.cows.filter(c => c.hasConflict).length;
+        const bullConflicts = importPreview.bulls.filter(b => b.hasConflict).length;
+        const calfConflicts = importPreview.calves.filter(c => c.hasConflict).length;
+        const totalConflicts = (settingsConflict ? 1 : 0) + cowConflicts + bullConflicts + calfConflicts;
+        
+        // Build summary
+        let summaryHtml = '<h4>Import Summary</h4><ul style="list-style: none; padding: 0; margin: 10px 0;">';
+        if (importPreview.settings) {
+          summaryHtml += `<li>Settings: ${settingsConflict ? '<span style="color: #dc3545;">exists (conflict)</span>' : 'will be imported'}</li>`;
+        }
+        summaryHtml += `<li>Cows: ${importPreview.cows.length} total, ${cowConflicts} duplicates</li>`;
+        summaryHtml += `<li>Bulls: ${importPreview.bulls.length} total, ${bullConflicts} duplicates</li>`;
+        summaryHtml += `<li>Calves: ${importPreview.calves.length} total, ${calfConflicts} duplicates</li>`;
+        summaryHtml += '</ul>';
+        
+        if (totalConflicts > 0) {
+          summaryHtml += `<p style="color: #dc3545; font-weight: bold;">${totalConflicts} duplicate(s) detected. Choose how to handle them below.</p>`;
+        } else {
+          summaryHtml += '<p style="color: #28a745;">No conflicts detected. Ready to import.</p>';
+          importExecuteBtn.disabled = false;
+        }
+        
+        importSummary.innerHTML = summaryHtml;
+        
+        // Show/hide duplicate options
+        duplicateOptions.style.display = totalConflicts > 0 ? 'block' : 'none';
+        reviewSection.style.display = 'none';
+        
+        // Set default decisions for non-conflicts to 'add'
+        importPreview.cows.forEach(c => {
+          if (!c.hasConflict) importDecisions.cows[c.identifier] = 'add';
+        });
+        importPreview.bulls.forEach(b => {
+          if (!b.hasConflict) importDecisions.bulls[b.identifier] = 'add';
+        });
+        importPreview.calves.forEach(c => {
+          if (!c.hasConflict) importDecisions.calves[c.identifier] = 'add';
+        });
+        
+        importModal.style.display = 'block';
+      }
+      
+      // Handle duplicate option buttons
+      document.querySelectorAll('.dupe-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.dataset.action;
+          
+          if (action === 'overwrite-all') {
+            if (importPreview.settings?.hasConflict) importDecisions.settings = 'replace';
+            importPreview.cows.forEach(c => importDecisions.cows[c.identifier] = c.hasConflict ? 'replace' : 'add');
+            importPreview.bulls.forEach(b => importDecisions.bulls[b.identifier] = b.hasConflict ? 'replace' : 'add');
+            importPreview.calves.forEach(c => importDecisions.calves[c.identifier] = c.hasConflict ? 'replace' : 'add');
+            importExecuteBtn.disabled = false;
+            reviewSection.style.display = 'none';
+          } else if (action === 'skip-all') {
+            if (importPreview.settings?.hasConflict) importDecisions.settings = 'skip';
+            importPreview.cows.forEach(c => importDecisions.cows[c.identifier] = c.hasConflict ? 'skip' : 'add');
+            importPreview.bulls.forEach(b => importDecisions.bulls[b.identifier] = b.hasConflict ? 'skip' : 'add');
+            importPreview.calves.forEach(c => importDecisions.calves[c.identifier] = c.hasConflict ? 'skip' : 'add');
+            importExecuteBtn.disabled = false;
+            reviewSection.style.display = 'none';
+          } else if (action === 'review') {
+            showReviewSection();
+          }
+        });
+      });
+      
+      function showReviewSection() {
+        reviewSection.style.display = 'block';
+        
+        // Settings review
+        const reviewSettings = document.getElementById('review-settings');
+        if (importPreview.settings?.hasConflict) {
+          reviewSettings.style.display = 'block';
+        } else {
+          reviewSettings.style.display = 'none';
+        }
+        
+        // Cows review
+        const reviewCows = document.getElementById('review-cows');
+        const cowDuplicates = importPreview.cows.filter(c => c.hasConflict);
+        if (cowDuplicates.length > 0) {
+          reviewCows.style.display = 'block';
+          const listHtml = cowDuplicates.map(c => createDuplicateItem('cows', c)).join('');
+          document.getElementById('cow-duplicates-list').innerHTML = listHtml;
+        } else {
+          reviewCows.style.display = 'none';
+        }
+        
+        // Bulls review
+        const reviewBulls = document.getElementById('review-bulls');
+        const bullDuplicates = importPreview.bulls.filter(b => b.hasConflict);
+        if (bullDuplicates.length > 0) {
+          reviewBulls.style.display = 'block';
+          const listHtml = bullDuplicates.map(b => createDuplicateItem('bulls', b)).join('');
+          document.getElementById('bull-duplicates-list').innerHTML = listHtml;
+        } else {
+          reviewBulls.style.display = 'none';
+        }
+        
+        // Calves review
+        const reviewCalves = document.getElementById('review-calves');
+        const calfDuplicates = importPreview.calves.filter(c => c.hasConflict);
+        if (calfDuplicates.length > 0) {
+          reviewCalves.style.display = 'block';
+          const listHtml = calfDuplicates.map(c => createDuplicateItem('calves', c)).join('');
+          document.getElementById('calf-duplicates-list').innerHTML = listHtml;
+        } else {
+          reviewCalves.style.display = 'none';
+        }
+        
+        updateExecuteButtonState();
+      }
+      
+      function createDuplicateItem(type, item) {
+        const incoming = item.incoming;
+        const existing = item.existing;
+        const id = item.identifier.replace(/[^a-zA-Z0-9]/g, '_');
+        
+        let incomingInfo = '';
+        let existingInfo = '';
+        
+        if (type === 'cows') {
+          incomingInfo = `Number: ${incoming.cowNumber || 'N/A'}, Name: ${incoming.cowName || 'N/A'}, Breed: ${incoming.race || 'N/A'}`;
+          existingInfo = `Number: ${existing.cowNumber || 'N/A'}, Name: ${existing.cowName || 'N/A'}, Breed: ${existing.race || 'N/A'}`;
+        } else if (type === 'bulls') {
+          incomingInfo = `Number: ${incoming.bullNumber || 'N/A'}, Name: ${incoming.bullName || 'N/A'}, Breed: ${incoming.race || 'N/A'}`;
+          existingInfo = `Number: ${existing.bullNumber || 'N/A'}, Name: ${existing.bullName || 'N/A'}, Breed: ${existing.race || 'N/A'}`;
+        } else if (type === 'calves') {
+          incomingInfo = `Name: ${incoming.calfName || 'N/A'}, Breed: ${incoming.calfBreed || 'N/A'}, Birth: ${incoming.birthDate ? new Date(incoming.birthDate).toLocaleDateString() : 'N/A'}`;
+          existingInfo = `Name: ${existing.calfName || 'N/A'}, Breed: ${existing.calfBreed || 'N/A'}, Birth: ${existing.birthDate ? new Date(existing.birthDate).toLocaleDateString() : 'N/A'}`;
+        }
+        
+        return `
+          <div style="padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;" data-type="${type}" data-identifier="${item.identifier}">
+            <div style="margin-bottom: 10px;">
+              <strong>${item.identifier}</strong>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; font-size: 0.9em;">
+              <div>
+                <div style="font-weight: bold; color: #17a2b8;">Incoming:</div>
+                <div>${incomingInfo}</div>
+              </div>
+              <div>
+                <div style="font-weight: bold; color: #dc3545;">Existing:</div>
+                <div>${existingInfo}</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="item-decision" data-type="${type}" data-identifier="${item.identifier}" data-decision="replace" style="padding: 5px 15px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Replace</button>
+              <button type="button" class="item-decision" data-type="${type}" data-identifier="${item.identifier}" data-decision="skip" style="padding: 5px 15px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Keep Existing</button>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Handle individual item decisions
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('item-decision')) {
+          const type = e.target.dataset.type;
+          const identifier = e.target.dataset.identifier;
+          const decision = e.target.dataset.decision;
+          
+          importDecisions[type][identifier] = decision;
+          
+          // Update button styles
+          const container = e.target.closest('[data-identifier]');
+          container.querySelectorAll('.item-decision').forEach(btn => {
+            btn.style.opacity = btn.dataset.decision === decision ? '1' : '0.5';
+          });
+          
+          updateExecuteButtonState();
+        }
+        
+        if (e.target.classList.contains('review-decision')) {
+          const type = e.target.dataset.type;
+          const decision = e.target.dataset.decision;
+          
+          if (type === 'settings') {
+            importDecisions.settings = decision;
+          }
+          
+          // Update button styles
+          const container = e.target.closest('#review-settings');
+          container.querySelectorAll('.review-decision').forEach(btn => {
+            btn.style.opacity = btn.dataset.decision === decision ? '1' : '0.5';
+          });
+          
+          updateExecuteButtonState();
+        }
+      });
+      
+      function updateExecuteButtonState() {
+        // Check if all duplicates have been decided
+        const settingsDecided = !importPreview.settings?.hasConflict || importDecisions.settings !== 'skip' || importDecisions.settings === 'skip';
+        const cowsDecided = importPreview.cows.filter(c => c.hasConflict).every(c => importDecisions.cows[c.identifier]);
+        const bullsDecided = importPreview.bulls.filter(b => b.hasConflict).every(b => importDecisions.bulls[b.identifier]);
+        const calvesDecided = importPreview.calves.filter(c => c.hasConflict).every(c => importDecisions.calves[c.identifier]);
+        
+        importExecuteBtn.disabled = !(settingsDecided && cowsDecided && bullsDecided && calvesDecided);
+      }
+      
+      // Cancel import
+      importCancelBtn.addEventListener('click', () => {
+        importModal.style.display = 'none';
+        importData = null;
+        importPreview = null;
+        importDecisions = { settings: 'skip', cows: {}, bulls: {}, calves: {} };
+      });
+      
+      // Execute import
+      importExecuteBtn.addEventListener('click', async () => {
+        importExecuteBtn.disabled = true;
+        importExecuteBtn.textContent = 'Importing...';
+        
+        try {
+          const response = await fetch('/import/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: importData, decisions: importDecisions }),
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Import failed');
+          }
+          
+          const result = await response.json();
+          
+          // Show results
+          importModal.style.display = 'none';
+          
+          let resultsHtml = '<ul style="list-style: none; padding: 0;">';
+          if (result.stats.settings) resultsHtml += '<li style="color: #28a745;">Settings: Imported</li>';
+          resultsHtml += `<li>Cows: ${result.stats.cows.added} added, ${result.stats.cows.replaced} replaced, ${result.stats.cows.skipped} skipped</li>`;
+          resultsHtml += `<li>Bulls: ${result.stats.bulls.added} added, ${result.stats.bulls.replaced} replaced, ${result.stats.bulls.skipped} skipped</li>`;
+          resultsHtml += `<li>Calves: ${result.stats.calves.added} added, ${result.stats.calves.replaced} replaced, ${result.stats.calves.skipped} skipped</li>`;
+          resultsHtml += '</ul>';
+          
+          importResultsContent.innerHTML = resultsHtml;
+          importResultsModal.style.display = 'block';
+          
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        } finally {
+          importExecuteBtn.disabled = false;
+          importExecuteBtn.textContent = 'Import Data';
+        }
+      });
+      
+      // Close results modal
+      importResultsClose.addEventListener('click', () => {
+        importResultsModal.style.display = 'none';
+        // Reload page to show updated data
+        window.location.reload();
+      });
+      
+      // ========== END IMPORT/EXPORT ==========
     </script>
 
     <%- include('partials/footer') %>
