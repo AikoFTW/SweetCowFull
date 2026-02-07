@@ -768,9 +768,9 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         if (type === 'all' || type === 'cows') {
             const cows = await Cow.find({ community: communityId }).lean();
             const cowIds = cows.map(c => c._id);
-            const inseminations = await Insemination.find({ cowId: { $in: cowIds }, community: communityId }).lean();
-            const audits = await Audit.find({ cowId: { $in: cowIds }, community: communityId }).lean();
-            const cowConfirmations = await Confirmation.find({ entityType: 'cow', entityId: { $in: cowIds }, community: communityId }).lean();
+            const inseminations = await Insemination.find({ cowId: { $in: cowIds } }).lean();
+            const audits = await Audit.find({ cowId: { $in: cowIds } }).lean();
+            const cowConfirmations = await Confirmation.find({ entityType: 'cow', entityId: { $in: cowIds } }).lean();
 
             // Group inseminations, audits, and confirmations by cowId
             const insemByCow = {};
@@ -832,12 +832,10 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         if (type === 'all' || type === 'bulls') {
             const bulls = await Bull.find({ community: communityId }).lean();
             const bullIds = bulls.map(b => b._id);
-            const bullConfirmations = await Confirmation.find({ entityType: 'bull', entityId: { $in: bullIds }, community: communityId }).lean();
-            const bullAudits = await Audit.find({ community: communityId }).lean();
+            const bullConfirmations = await Confirmation.find({ entityType: 'bull', entityId: { $in: bullIds } }).lean();
             
-            // Group confirmations and audits by bullId
+            // Group confirmations by bullId
             const confirmByBull = {};
-            const auditByBull = {};
             bullConfirmations.forEach(c => {
                 const k = c.entityId.toString();
                 if (!confirmByBull[k]) confirmByBull[k] = [];
@@ -871,7 +869,7 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         if (type === 'all' || type === 'calves') {
             const calves = await Calf.find({ community: communityId }).lean();
             const calfIds = calves.map(c => c._id);
-            const calfConfirmations = await Confirmation.find({ entityType: 'calf', entityId: { $in: calfIds }, community: communityId }).lean();
+            const calfConfirmations = await Confirmation.find({ entityType: 'calf', entityId: { $in: calfIds } }).lean();
             
             // Group confirmations by calfId
             const confirmByCalf = {};
