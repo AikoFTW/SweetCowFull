@@ -769,7 +769,27 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         if (type === 'all' || type === 'cows') {
             const cows = await Cow.find({ community: communityId }).lean();
             const cowIds = cows.map(c => c._id);
-            const inseminations = await Insemination.find({ cowId: { $in: cowIds } }).lean();
+            
+            console.log(`[Export] Found ${cows.length} cows for community ${communityId}`);
+            
+            // Query inseminations - try both with and without explicit ObjectId conversion
+            let inseminations = [];
+            if (cowIds.length > 0) {
+                inseminations = await Insemination.find({ cowId: { $in: cowIds } }).lean();
+                console.log(`[Export] Found ${inseminations.length} inseminations by ObjectId`);
+                
+                // If no results, try with string conversion as fallback
+                if (inseminations.length === 0) {
+                    const stringIds = cowIds.map(id => id.toString());
+                    inseminations = await Insemination.find({ cowId: { $in: stringIds } }).lean();
+                    console.log(`[Export] Found ${inseminations.length} inseminations by string ID`);
+                }
+                
+                // Also try getting ALL inseminations to see what's in DB
+                const allInsem = await Insemination.find({}).limit(5).lean();
+                console.log(`[Export] Sample inseminations in DB:`, allInsem.map(i => ({ cowId: i.cowId, date: i.date })));
+            }
+            
             const audits = await Audit.find({ cowId: { $in: cowIds } }).lean();
             const cowConfirmations = await Confirmation.find({ entityType: 'cow', entityId: { $in: cowIds } }).lean();
 
@@ -778,15 +798,20 @@ router.get('/export/:type', isAdmin, async (req, res) => {
             const auditByCow = {};
             const confirmByCow = {};
             inseminations.forEach(i => {
-                const k = i.cowId.toString();
-                if (!insemByCow[k]) insemByCow[k] = [];
-                insemByCow[k].push({
-                    date: i.date,
-                    confirmedPregnant: i.confirmedPregnant,
-                    failed: i.failed,
-                    forced: i.forced,
-                    notes: i.notes
-                });
+                // Handle both ObjectId and string cowId
+                const k = i.cowId ? (i.cowId._id || i.cowId).toString() : null;
+                if (k) {
+                    if (!insemByCow[k]) insemByCow[k] = [];
+                    insemByCow[k].push({
+                        date: i.date,
+                        confirmedPregnant: i.confirmedPregnant,
+                        failed: i.failed,
+                        forced: i.forced,
+                        notes: i.notes,
+                        createdAt: i.createdAt,
+                        updatedAt: i.updatedAt
+                    });
+                }
             });
             audits.forEach(a => {
                 const k = a.cowId.toString();
