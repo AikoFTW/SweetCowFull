@@ -735,6 +735,7 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         const Insemination = mongoose.model('Insemination');
         const Audit = mongoose.model('Audit');
         const Settings = mongoose.model('Settings');
+        const Confirmation = mongoose.model('Confirmation');
 
         const exportData = {
             exportedAt: new Date().toISOString(),
@@ -768,12 +769,14 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         if (type === 'all' || type === 'cows') {
             const cows = await Cow.find({ community: communityId }).lean();
             const cowIds = cows.map(c => c._id);
-            const inseminations = await Insemination.find({ cowId: { $in: cowIds }, community: communityId }).lean();
-            const audits = await Audit.find({ cowId: { $in: cowIds }, community: communityId }).lean();
+            const inseminations = await Insemination.find({ cowId: { $in: cowIds } }).lean();
+            const audits = await Audit.find({ cowId: { $in: cowIds } }).lean();
+            const cowConfirmations = await Confirmation.find({ entityType: 'cow', entityId: { $in: cowIds } }).lean();
 
-            // Group inseminations and audits by cowId
+            // Group inseminations, audits, and confirmations by cowId
             const insemByCow = {};
             const auditByCow = {};
+            const confirmByCow = {};
             inseminations.forEach(i => {
                 const k = i.cowId.toString();
                 if (!insemByCow[k]) insemByCow[k] = [];
@@ -795,6 +798,17 @@ router.get('/export/:type', isAdmin, async (req, res) => {
                     payload: a.payload
                 });
             });
+            cowConfirmations.forEach(c => {
+                const k = c.entityId.toString();
+                if (!confirmByCow[k]) confirmByCow[k] = [];
+                confirmByCow[k].push({
+                    type: c.type,
+                    when: c.when,
+                    alertOn: c.alertOn,
+                    note: c.note,
+                    undone: c.undone
+                });
+            });
 
             exportData.cows = cows.map(c => ({
                 cowNumber: c.cowNumber,
@@ -811,12 +825,30 @@ router.get('/export/:type', isAdmin, async (req, res) => {
                 sireBullName: c.sireBullName,
                 sireBullBreed: c.sireBullBreed,
                 inseminations: insemByCow[c._id.toString()] || [],
-                history: auditByCow[c._id.toString()] || []
+                history: auditByCow[c._id.toString()] || [],
+                confirmations: confirmByCow[c._id.toString()] || []
             }));
         }
 
         if (type === 'all' || type === 'bulls') {
             const bulls = await Bull.find({ community: communityId }).lean();
+            const bullIds = bulls.map(b => b._id);
+            const bullConfirmations = await Confirmation.find({ entityType: 'bull', entityId: { $in: bullIds } }).lean();
+            
+            // Group confirmations by bullId
+            const confirmByBull = {};
+            bullConfirmations.forEach(c => {
+                const k = c.entityId.toString();
+                if (!confirmByBull[k]) confirmByBull[k] = [];
+                confirmByBull[k].push({
+                    type: c.type,
+                    when: c.when,
+                    alertOn: c.alertOn,
+                    note: c.note,
+                    undone: c.undone
+                });
+            });
+            
             exportData.bulls = bulls.map(b => ({
                 bullNumber: b.bullNumber,
                 bullName: b.bullName,
@@ -830,12 +862,30 @@ router.get('/export/:type', isAdmin, async (req, res) => {
                 sireBullNumber: b.sireBullNumber,
                 sireBullName: b.sireBullName,
                 sireBullBreed: b.sireBullBreed,
-                isInsemination: b.isInsemination
+                isInsemination: b.isInsemination,
+                confirmations: confirmByBull[b._id.toString()] || []
             }));
         }
 
         if (type === 'all' || type === 'calves') {
             const calves = await Calf.find({ community: communityId }).lean();
+            const calfIds = calves.map(c => c._id);
+            const calfConfirmations = await Confirmation.find({ entityType: 'calf', entityId: { $in: calfIds } }).lean();
+            
+            // Group confirmations by calfId
+            const confirmByCalf = {};
+            calfConfirmations.forEach(c => {
+                const k = c.entityId.toString();
+                if (!confirmByCalf[k]) confirmByCalf[k] = [];
+                confirmByCalf[k].push({
+                    type: c.type,
+                    when: c.when,
+                    alertOn: c.alertOn,
+                    note: c.note,
+                    undone: c.undone
+                });
+            });
+            
             exportData.calves = calves.map(c => ({
                 calfName: c.calfName,
                 calfBreed: c.calfBreed,
@@ -852,7 +902,8 @@ router.get('/export/:type', isAdmin, async (req, res) => {
                 sireBullBreed: c.sireBullBreed,
                 graduated: c.graduated,
                 graduatedAt: c.graduatedAt,
-                adultType: c.adultType
+                adultType: c.adultType,
+                confirmations: confirmByCalf[c._id.toString()] || []
             }));
         }
 
@@ -1033,6 +1084,7 @@ router.post('/import/execute', isAdmin, async (req, res) => {
         const Calf = mongoose.model('Calf');
         const Insemination = mongoose.model('Insemination');
         const Audit = mongoose.model('Audit');
+        const Confirmation = mongoose.model('Confirmation');
         const Settings = mongoose.model('Settings');
 
         const results = {
@@ -1127,6 +1179,23 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             }
                         }
 
+                        // Replace confirmations if included
+                        if (cow.confirmations && cow.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ cowId: existing._id });
+                            for (const conf of cow.confirmations) {
+                                await Confirmation.create({
+                                    cowId: existing._id,
+                                    inseminationId: conf.inseminationId,
+                                    type: conf.type,
+                                    date: conf.date ? new Date(conf.date) : undefined,
+                                    notes: conf.notes,
+                                    method: conf.method,
+                                    result: conf.result,
+                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                });
+                            }
+                        }
+
                         results.cows.updated++;
                     } else {
                         results.cows.skipped++;
@@ -1178,6 +1247,22 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         }
                     }
 
+                    // Create confirmations
+                    if (cow.confirmations && cow.confirmations.length > 0) {
+                        for (const conf of cow.confirmations) {
+                            await Confirmation.create({
+                                cowId: newCow._id,
+                                inseminationId: conf.inseminationId,
+                                type: conf.type,
+                                date: conf.date ? new Date(conf.date) : undefined,
+                                notes: conf.notes,
+                                method: conf.method,
+                                result: conf.result,
+                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                            });
+                        }
+                    }
+
                     results.cows.created++;
                 }
             }
@@ -1215,12 +1300,29 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             sireBullBreed: bull.sireBullBreed,
                             isInsemination: bull.isInsemination
                         });
+
+                        // Replace confirmations if included
+                        if (bull.confirmations && bull.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ bullId: existing._id });
+                            for (const conf of bull.confirmations) {
+                                await Confirmation.create({
+                                    bullId: existing._id,
+                                    type: conf.type,
+                                    date: conf.date ? new Date(conf.date) : undefined,
+                                    notes: conf.notes,
+                                    method: conf.method,
+                                    result: conf.result,
+                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                });
+                            }
+                        }
+
                         results.bulls.updated++;
                     } else {
                         results.bulls.skipped++;
                     }
                 } else {
-                    await Bull.create({
+                    const newBull = await Bull.create({
                         community: communityId,
                         bullNumber: bull.bullNumber,
                         bullName: bull.bullName,
@@ -1235,6 +1337,22 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         sireBullBreed: bull.sireBullBreed,
                         isInsemination: bull.isInsemination
                     });
+
+                    // Create confirmations
+                    if (bull.confirmations && bull.confirmations.length > 0) {
+                        for (const conf of bull.confirmations) {
+                            await Confirmation.create({
+                                bullId: newBull._id,
+                                type: conf.type,
+                                date: conf.date ? new Date(conf.date) : undefined,
+                                notes: conf.notes,
+                                method: conf.method,
+                                result: conf.result,
+                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                            });
+                        }
+                    }
+
                     results.bulls.created++;
                 }
             }
@@ -1273,12 +1391,29 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             graduatedAt: calf.graduatedAt ? new Date(calf.graduatedAt) : undefined,
                             adultType: calf.adultType
                         });
+
+                        // Replace confirmations if included
+                        if (calf.confirmations && calf.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ calfId: existing._id });
+                            for (const conf of calf.confirmations) {
+                                await Confirmation.create({
+                                    calfId: existing._id,
+                                    type: conf.type,
+                                    date: conf.date ? new Date(conf.date) : undefined,
+                                    notes: conf.notes,
+                                    method: conf.method,
+                                    result: conf.result,
+                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                });
+                            }
+                        }
+
                         results.calves.updated++;
                     } else {
                         results.calves.skipped++;
                     }
                 } else {
-                    await Calf.create({
+                    const newCalf = await Calf.create({
                         community: communityId,
                         calfName: calf.calfName,
                         calfBreed: calf.calfBreed,
@@ -1296,6 +1431,22 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         graduatedAt: calf.graduatedAt ? new Date(calf.graduatedAt) : undefined,
                         adultType: calf.adultType
                     });
+
+                    // Create confirmations
+                    if (calf.confirmations && calf.confirmations.length > 0) {
+                        for (const conf of calf.confirmations) {
+                            await Confirmation.create({
+                                calfId: newCalf._id,
+                                type: conf.type,
+                                date: conf.date ? new Date(conf.date) : undefined,
+                                notes: conf.notes,
+                                method: conf.method,
+                                result: conf.result,
+                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                            });
+                        }
+                    }
+
                     results.calves.created++;
                 }
             }
