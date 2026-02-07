@@ -734,6 +734,7 @@ router.get('/export/:type', isAdmin, async (req, res) => {
         const Calf = mongoose.model('Calf');
         const Insemination = mongoose.model('Insemination');
         const Audit = mongoose.model('Audit');
+        const Confirmation = mongoose.model('Confirmation');
         const Settings = mongoose.model('Settings');
 
         const exportData = {
@@ -1083,6 +1084,7 @@ router.post('/import/execute', isAdmin, async (req, res) => {
         const Calf = mongoose.model('Calf');
         const Insemination = mongoose.model('Insemination');
         const Audit = mongoose.model('Audit');
+        const Confirmation = mongoose.model('Confirmation');
         const Settings = mongoose.model('Settings');
 
         const results = {
@@ -1177,6 +1179,23 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             }
                         }
 
+                        // Replace confirmations if included
+                        if (cow.confirmations && cow.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'cow', entityId: existing._id });
+                            for (const conf of cow.confirmations) {
+                                await Confirmation.create({
+                                    community: communityId,
+                                    entityType: 'cow',
+                                    entityId: existing._id,
+                                    type: conf.type,
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
+                                });
+                            }
+                        }
+
                         results.cows.updated++;
                     } else {
                         results.cows.skipped++;
@@ -1228,6 +1247,22 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         }
                     }
 
+                    // Create confirmations
+                    if (cow.confirmations && cow.confirmations.length > 0) {
+                        for (const conf of cow.confirmations) {
+                            await Confirmation.create({
+                                community: communityId,
+                                entityType: 'cow',
+                                entityId: newCow._id,
+                                type: conf.type,
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
+                            });
+                        }
+                    }
+
                     results.cows.created++;
                 }
             }
@@ -1265,12 +1300,30 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             sireBullBreed: bull.sireBullBreed,
                             isInsemination: bull.isInsemination
                         });
+
+                        // Replace confirmations if included
+                        if (bull.confirmations && bull.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'bull', entityId: existing._id });
+                            for (const conf of bull.confirmations) {
+                                await Confirmation.create({
+                                    community: communityId,
+                                    entityType: 'bull',
+                                    entityId: existing._id,
+                                    type: conf.type,
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
+                                });
+                            }
+                        }
+
                         results.bulls.updated++;
                     } else {
                         results.bulls.skipped++;
                     }
                 } else {
-                    await Bull.create({
+                    const newBull = await Bull.create({
                         community: communityId,
                         bullNumber: bull.bullNumber,
                         bullName: bull.bullName,
@@ -1285,6 +1338,23 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         sireBullBreed: bull.sireBullBreed,
                         isInsemination: bull.isInsemination
                     });
+
+                    // Create confirmations
+                    if (bull.confirmations && bull.confirmations.length > 0) {
+                        for (const conf of bull.confirmations) {
+                            await Confirmation.create({
+                                community: communityId,
+                                entityType: 'bull',
+                                entityId: newBull._id,
+                                type: conf.type,
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
+                            });
+                        }
+                    }
+
                     results.bulls.created++;
                 }
             }
@@ -1323,12 +1393,30 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             graduatedAt: calf.graduatedAt ? new Date(calf.graduatedAt) : undefined,
                             adultType: calf.adultType
                         });
+
+                        // Replace confirmations if included
+                        if (calf.confirmations && calf.confirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'calf', entityId: existing._id });
+                            for (const conf of calf.confirmations) {
+                                await Confirmation.create({
+                                    community: communityId,
+                                    entityType: 'calf',
+                                    entityId: existing._id,
+                                    type: conf.type,
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
+                                });
+                            }
+                        }
+
                         results.calves.updated++;
                     } else {
                         results.calves.skipped++;
                     }
                 } else {
-                    await Calf.create({
+                    const newCalf = await Calf.create({
                         community: communityId,
                         calfName: calf.calfName,
                         calfBreed: calf.calfBreed,
@@ -1346,6 +1434,23 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         graduatedAt: calf.graduatedAt ? new Date(calf.graduatedAt) : undefined,
                         adultType: calf.adultType
                     });
+
+                    // Create confirmations
+                    if (calf.confirmations && calf.confirmations.length > 0) {
+                        for (const conf of calf.confirmations) {
+                            await Confirmation.create({
+                                community: communityId,
+                                entityType: 'calf',
+                                entityId: newCalf._id,
+                                type: conf.type,
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
+                            });
+                        }
+                    }
+
                     results.calves.created++;
                 }
             }
