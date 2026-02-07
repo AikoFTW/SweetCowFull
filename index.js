@@ -569,16 +569,43 @@ app.get('/export/all', async (req, res) => {
             Confirmation.find().lean(),
             Audit.find().lean(),
         ]);
+        
+        // Embed inseminations, audits, and confirmations within each cow
+        const cowsWithHistory = cows.map(cow => {
+            const cowIdStr = String(cow._id);
+            return {
+                ...cow,
+                _inseminations: inseminations.filter(i => String(i.cowId) === cowIdStr),
+                _audits: audits.filter(a => String(a.cowId) === cowIdStr),
+                _confirmations: confirmations.filter(c => c.entityType === 'cow' && String(c.entityId) === cowIdStr),
+            };
+        });
+        
+        // Embed confirmations within each bull
+        const bullsWithHistory = bulls.map(bull => {
+            const bullIdStr = String(bull._id);
+            return {
+                ...bull,
+                _confirmations: confirmations.filter(c => c.entityType === 'bull' && String(c.entityId) === bullIdStr),
+            };
+        });
+        
+        // Embed confirmations within each calf
+        const calvesWithHistory = calves.map(calf => {
+            const calfIdStr = String(calf._id);
+            return {
+                ...calf,
+                _confirmations: confirmations.filter(c => c.entityType === 'calf' && String(c.entityId) === calfIdStr),
+            };
+        });
+        
         const exportData = {
             version: '1.0',
             exportedAt: new Date().toISOString(),
             settings: settings || {},
-            cows,
-            bulls,
-            calves,
-            inseminations,
-            confirmations,
-            audits,
+            cows: cowsWithHistory,
+            bulls: bullsWithHistory,
+            calves: calvesWithHistory,
         };
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="sweetcow-backup-${new Date().toISOString().slice(0,10)}.json"`);
@@ -816,6 +843,14 @@ app.post('/import/execute', express.json({ limit: '50mb' }), async (req, res) =>
                                 await Insemination.create({ ...insemData, cowId: updated._id });
                             }
                         }
+                        // Import audits
+                        if (_audits && _audits.length > 0) {
+                            await Audit.deleteMany({ cowId: updated._id });
+                            for (const audit of _audits) {
+                                const { _id: aid, __v: av, ...auditData } = audit;
+                                await Audit.create({ ...auditData, cowId: updated._id });
+                            }
+                        }
                         stats.cows.replaced++;
                     } else {
                         stats.cows.skipped++;
@@ -827,6 +862,13 @@ app.post('/import/execute', express.json({ limit: '50mb' }), async (req, res) =>
                         for (const insem of _inseminations) {
                             const { _id: iid, __v: iv, cowId: oldCowId, ...insemData } = insem;
                             await Insemination.create({ ...insemData, cowId: created._id });
+                        }
+                    }
+                    // Import audits
+                    if (_audits && _audits.length > 0) {
+                        for (const audit of _audits) {
+                            const { _id: aid, __v: av, cowId: oldCowId, ...auditData } = audit;
+                            await Audit.create({ ...auditData, cowId: created._id });
                         }
                     }
                     stats.cows.added++;
@@ -886,6 +928,27 @@ app.post('/import/execute', express.json({ limit: '50mb' }), async (req, res) =>
                 } else {
                     await Calf.create(calfFields);
                     stats.calves.added++;
+                }
+            }
+        }
+        
+        // Handle legacy format: root-level inseminations array (for backward compatibility)
+        if (data.inseminations && Array.isArray(data.inseminations) && data.inseminations.length > 0) {
+            // Map old cow IDs to new cow IDs based on cowNumber
+            const allCows = await Cow.find().lean();
+            const cowByNumber = new Map(allCows.filter(c => c.cowNumber).map(c => [c.cowNumber, c]));
+            
+            for (const insemData of data.inseminations) {
+                // Try to find the cow this insemination belongs to
+                // First check if cow was imported and we can find it by old cowId reference
+                const cowIdStr = insemData.cowId ? String(insemData.cowId) : null;
+                const matchingCowInImport = data.cows?.find(c => String(c._id) === cowIdStr);
+                const targetCowNumber = matchingCowInImport?.cowNumber;
+                const targetCow = targetCowNumber ? cowByNumber.get(targetCowNumber) : null;
+                
+                if (targetCow) {
+                    const { _id, __v, cowId, ...insemFields } = insemData;
+                    await Insemination.create({ ...insemFields, cowId: targetCow._id });
                 }
             }
         }
