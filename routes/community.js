@@ -1116,6 +1116,18 @@ router.post('/import/execute', isAdmin, async (req, res) => {
 
         // Import cows
         if (importData.cows && Array.isArray(importData.cows)) {
+            console.log(`[Import] Processing ${importData.cows.length} cows`);
+            
+            // Debug: check first cow's embedded data
+            if (importData.cows.length > 0) {
+                const firstCow = importData.cows[0];
+                console.log(`[Import] First cow: ${firstCow.cowName || firstCow.cowNumber}`);
+                console.log(`[Import] Has _inseminations: ${!!firstCow._inseminations}, count: ${(firstCow._inseminations || []).length}`);
+                console.log(`[Import] Has inseminations: ${!!firstCow.inseminations}, count: ${(firstCow.inseminations || []).length}`);
+                console.log(`[Import] Has _audits: ${!!firstCow._audits}, count: ${(firstCow._audits || []).length}`);
+                console.log(`[Import] Has history: ${!!firstCow.history}, count: ${(firstCow.history || []).length}`);
+            }
+            
             const existingCows = await Cow.find({ community: communityId }).lean();
             const existingByNumber = {};
             const existingByName = {};
@@ -1148,13 +1160,15 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             sireBullBreed: cow.sireBullBreed
                         });
 
-                        // Replace inseminations if included
-                        if (cow.inseminations && cow.inseminations.length > 0) {
-                            await Insemination.deleteMany({ cowId: existing._id, community: communityId });
-                            for (const ins of cow.inseminations) {
+                        // Replace inseminations if included (handle both _inseminations and inseminations)
+                        const cowInseminations = cow._inseminations || cow.inseminations || [];
+                        console.log(`[Import] Cow ${cow.cowName || cow.cowNumber} - importing ${cowInseminations.length} inseminations (existing cow)`);
+                        if (cowInseminations.length > 0) {
+                            await Insemination.deleteMany({ cowId: existing._id });
+                            for (const ins of cowInseminations) {
                                 await Insemination.create({
-                                    cowId: existing._id,
                                     community: communityId,
+                                    cowId: existing._id,
                                     date: new Date(ins.date),
                                     confirmedPregnant: ins.confirmedPregnant,
                                     failed: ins.failed,
@@ -1164,13 +1178,16 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             }
                         }
 
-                        // Replace history/audits if included
-                        if (cow.history && cow.history.length > 0) {
-                            await Audit.deleteMany({ cowId: existing._id, community: communityId });
-                            for (const audit of cow.history) {
+                        // Replace history/audits if included (handle both _audits and history)
+                        const cowAudits = cow._audits || cow.history || [];
+                        console.log(`[Import] Cow ${cow.cowName || cow.cowNumber} - importing ${cowAudits.length} audits (existing cow)`);
+                        if (cowAudits.length > 0) {
+                            await Audit.deleteMany({ cowId: existing._id });
+                            for (const audit of cowAudits) {
                                 await Audit.create({
-                                    cowId: existing._id,
                                     community: communityId,
+                                    cowId: existing._id,
+                                    inseminationId: audit.inseminationId,
                                     action: audit.action,
                                     actor: audit.actor || 'import',
                                     at: audit.at ? new Date(audit.at) : new Date(),
@@ -1179,19 +1196,20 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             }
                         }
 
-                        // Replace confirmations if included
-                        if (cow.confirmations && cow.confirmations.length > 0) {
-                            await Confirmation.deleteMany({ cowId: existing._id });
-                            for (const conf of cow.confirmations) {
+                        // Replace confirmations if included (handle both _confirmations and confirmations)
+                        const cowConfirmations = cow._confirmations || cow.confirmations || [];
+                        if (cowConfirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'cow', entityId: existing._id });
+                            for (const conf of cowConfirmations) {
                                 await Confirmation.create({
-                                    cowId: existing._id,
-                                    inseminationId: conf.inseminationId,
+                                    community: communityId,
+                                    entityType: 'cow',
+                                    entityId: existing._id,
                                     type: conf.type,
-                                    date: conf.date ? new Date(conf.date) : undefined,
-                                    notes: conf.notes,
-                                    method: conf.method,
-                                    result: conf.result,
-                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
                                 });
                             }
                         }
@@ -1218,12 +1236,14 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         sireBullBreed: cow.sireBullBreed
                     });
 
-                    // Create inseminations
-                    if (cow.inseminations && cow.inseminations.length > 0) {
-                        for (const ins of cow.inseminations) {
+                    // Create inseminations (handle both _inseminations and inseminations)
+                    const newCowInseminations = cow._inseminations || cow.inseminations || [];
+                    console.log(`[Import] New cow ${cow.cowName || cow.cowNumber} - importing ${newCowInseminations.length} inseminations`);
+                    if (newCowInseminations.length > 0) {
+                        for (const ins of newCowInseminations) {
                             await Insemination.create({
-                                cowId: newCow._id,
                                 community: communityId,
+                                cowId: newCow._id,
                                 date: new Date(ins.date),
                                 confirmedPregnant: ins.confirmedPregnant,
                                 failed: ins.failed,
@@ -1233,12 +1253,15 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         }
                     }
 
-                    // Create history/audits
-                    if (cow.history && cow.history.length > 0) {
-                        for (const audit of cow.history) {
+                    // Create history/audits (handle both _audits and history)
+                    const newCowAudits = cow._audits || cow.history || [];
+                    console.log(`[Import] New cow ${cow.cowName || cow.cowNumber} - importing ${newCowAudits.length} audits`);
+                    if (newCowAudits.length > 0) {
+                        for (const audit of newCowAudits) {
                             await Audit.create({
-                                cowId: newCow._id,
                                 community: communityId,
+                                cowId: newCow._id,
+                                inseminationId: audit.inseminationId,
                                 action: audit.action,
                                 actor: audit.actor || 'import',
                                 at: audit.at ? new Date(audit.at) : new Date(),
@@ -1247,18 +1270,19 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         }
                     }
 
-                    // Create confirmations
-                    if (cow.confirmations && cow.confirmations.length > 0) {
-                        for (const conf of cow.confirmations) {
+                    // Create confirmations (handle both _confirmations and confirmations)
+                    const newCowConfirmations = cow._confirmations || cow.confirmations || [];
+                    if (newCowConfirmations.length > 0) {
+                        for (const conf of newCowConfirmations) {
                             await Confirmation.create({
-                                cowId: newCow._id,
-                                inseminationId: conf.inseminationId,
+                                community: communityId,
+                                entityType: 'cow',
+                                entityId: newCow._id,
                                 type: conf.type,
-                                date: conf.date ? new Date(conf.date) : undefined,
-                                notes: conf.notes,
-                                method: conf.method,
-                                result: conf.result,
-                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
                             });
                         }
                     }
@@ -1301,18 +1325,20 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             isInsemination: bull.isInsemination
                         });
 
-                        // Replace confirmations if included
-                        if (bull.confirmations && bull.confirmations.length > 0) {
-                            await Confirmation.deleteMany({ bullId: existing._id });
-                            for (const conf of bull.confirmations) {
+                        // Replace confirmations if included (handle both _confirmations and confirmations)
+                        const bullConfirmations = bull._confirmations || bull.confirmations || [];
+                        if (bullConfirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'bull', entityId: existing._id });
+                            for (const conf of bullConfirmations) {
                                 await Confirmation.create({
-                                    bullId: existing._id,
+                                    community: communityId,
+                                    entityType: 'bull',
+                                    entityId: existing._id,
                                     type: conf.type,
-                                    date: conf.date ? new Date(conf.date) : undefined,
-                                    notes: conf.notes,
-                                    method: conf.method,
-                                    result: conf.result,
-                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
                                 });
                             }
                         }
@@ -1338,17 +1364,19 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         isInsemination: bull.isInsemination
                     });
 
-                    // Create confirmations
-                    if (bull.confirmations && bull.confirmations.length > 0) {
-                        for (const conf of bull.confirmations) {
+                    // Create confirmations (handle both _confirmations and confirmations)
+                    const newBullConfirmations = bull._confirmations || bull.confirmations || [];
+                    if (newBullConfirmations.length > 0) {
+                        for (const conf of newBullConfirmations) {
                             await Confirmation.create({
-                                bullId: newBull._id,
+                                community: communityId,
+                                entityType: 'bull',
+                                entityId: newBull._id,
                                 type: conf.type,
-                                date: conf.date ? new Date(conf.date) : undefined,
-                                notes: conf.notes,
-                                method: conf.method,
-                                result: conf.result,
-                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
                             });
                         }
                     }
@@ -1392,18 +1420,20 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                             adultType: calf.adultType
                         });
 
-                        // Replace confirmations if included
-                        if (calf.confirmations && calf.confirmations.length > 0) {
-                            await Confirmation.deleteMany({ calfId: existing._id });
-                            for (const conf of calf.confirmations) {
+                        // Replace confirmations if included (handle both _confirmations and confirmations)
+                        const calfConfirmations = calf._confirmations || calf.confirmations || [];
+                        if (calfConfirmations.length > 0) {
+                            await Confirmation.deleteMany({ entityType: 'calf', entityId: existing._id });
+                            for (const conf of calfConfirmations) {
                                 await Confirmation.create({
-                                    calfId: existing._id,
+                                    community: communityId,
+                                    entityType: 'calf',
+                                    entityId: existing._id,
                                     type: conf.type,
-                                    date: conf.date ? new Date(conf.date) : undefined,
-                                    notes: conf.notes,
-                                    method: conf.method,
-                                    result: conf.result,
-                                    createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                    when: conf.when ? new Date(conf.when) : undefined,
+                                    alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                    note: conf.note,
+                                    undone: conf.undone
                                 });
                             }
                         }
@@ -1432,17 +1462,19 @@ router.post('/import/execute', isAdmin, async (req, res) => {
                         adultType: calf.adultType
                     });
 
-                    // Create confirmations
-                    if (calf.confirmations && calf.confirmations.length > 0) {
-                        for (const conf of calf.confirmations) {
+                    // Create confirmations (handle both _confirmations and confirmations)
+                    const newCalfConfirmations = calf._confirmations || calf.confirmations || [];
+                    if (newCalfConfirmations.length > 0) {
+                        for (const conf of newCalfConfirmations) {
                             await Confirmation.create({
-                                calfId: newCalf._id,
+                                community: communityId,
+                                entityType: 'calf',
+                                entityId: newCalf._id,
                                 type: conf.type,
-                                date: conf.date ? new Date(conf.date) : undefined,
-                                notes: conf.notes,
-                                method: conf.method,
-                                result: conf.result,
-                                createdAt: conf.createdAt ? new Date(conf.createdAt) : new Date()
+                                when: conf.when ? new Date(conf.when) : undefined,
+                                alertOn: conf.alertOn ? new Date(conf.alertOn) : undefined,
+                                note: conf.note,
+                                undone: conf.undone
                             });
                         }
                     }

@@ -239,8 +239,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
-app.use(express.json()); // Middleware to parse JSON data
+app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For parsing application/x-www-form-urlencoded
+app.use(express.json({ limit: '50mb' })); // Middleware to parse JSON data with increased limit for imports
 
 // Session for override access (simple password gate)
 app.use(session({
