@@ -1044,9 +1044,11 @@ router.post('/import/execute', isAdmin, async (req, res) => {
 
         // Import settings
         if (importData.settings) {
+            // Remove _id and __v to avoid trying to update immutable fields
+            const { _id, __v, ...settingsData } = importData.settings;
             await Settings.findOneAndUpdate(
                 { community: communityId },
-                { ...importData.settings, community: communityId },
+                { ...settingsData, community: communityId },
                 { upsert: true }
             );
             results.settings = true;
